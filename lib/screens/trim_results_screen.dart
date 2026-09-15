@@ -7,6 +7,7 @@ import '../core/theme/app_typography.dart';
 import '../core/utilities/haptics_util.dart';
 import '../models/trim_result.dart';
 import '../models/trim_session.dart';
+import '../services/office_kit_service.dart';
 import '../services/trim_session_repository.dart';
 import '../widgets/trim_glass_button.dart';
 import '../widgets/trim_glass_surface.dart';
@@ -53,6 +54,8 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
   late final AnimationController _exitController;
 
   TrimButtonMorphState _exportState = TrimButtonMorphState.idle;
+  TrimButtonMorphState _buildDeskState = TrimButtonMorphState.idle;
+
 
   @override
   void initState() {
@@ -153,6 +156,40 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
       if (mounted) {
         setState(() {
           _exportState = TrimButtonMorphState.idle;
+        });
+      }
+    }
+  }
+
+  Future<void> _sendToBuildDesk(BuildContext context) async {
+    if (_buildDeskState != TrimButtonMorphState.idle) return;
+
+    setState(() {
+      _buildDeskState = TrimButtonMorphState.loading;
+    });
+
+    try {
+      await OfficeKitService.instance.sendToBuildDesk(
+        context: context,
+        result: _result,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        _buildDeskState = TrimButtonMorphState.success;
+      });
+
+      Future.delayed(const Duration(milliseconds: 2200), () {
+        if (mounted) {
+          setState(() {
+            _buildDeskState = TrimButtonMorphState.idle;
+          });
+        }
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _buildDeskState = TrimButtonMorphState.idle;
         });
       }
     }
@@ -705,6 +742,30 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                 style: AppTypography.bodySmall.copyWith(
                   fontSize: 12.0,
                   color: const Color(0xFF71717A),
+                ),
+              ),
+              const SizedBox(height: 12.0),
+              // MVP LOCKED -> SEND TO BUILD DESK
+              Builder(
+                builder: (btnContext) {
+                  return TrimGlassButton(
+                    label: 'SEND TO BUILD DESK',
+                    icon: Icons.laptop_mac_rounded,
+                    variant: TrimButtonVariant.primary,
+                    morphState: _buildDeskState,
+                    loadingLabel: 'HANDING OFF...',
+                    successLabel: 'SENT TO DESK ✓',
+                    height: 46.0,
+                    onTap: () => _sendToBuildDesk(btnContext),
+                  );
+                },
+              ),
+              const SizedBox(height: 6.0),
+              Text(
+                'Syncs 4 specs to laptop: MVP_SPEC.md, BUILD_ORDER.md, CUT_FEATURES.md, PRODUCT_TRUTH.md',
+                style: AppTypography.monoLabel.copyWith(
+                  fontSize: 9.5,
+                  color: const Color(0xFFA1A1AA),
                 ),
               ),
             ],
