@@ -13,10 +13,11 @@ class TrimSession {
   final List<MustHave> mustHaves;
   final List<DiscardedFeature> discardedBloat;
   final List<String> buildOrder;
-  final String harshTruth;
+  final String productTruth;
   final int totalFeatureCount;
   final int survivorCount;
   final int cutCount;
+  final int scopeReduction;
   final bool isLocked;
 
   const TrimSession({
@@ -29,12 +30,19 @@ class TrimSession {
     required this.mustHaves,
     required this.discardedBloat,
     required this.buildOrder,
-    required this.harshTruth,
+    required this.productTruth,
     required this.totalFeatureCount,
     required this.survivorCount,
     required this.cutCount,
+    required this.scopeReduction,
     this.isLocked = false,
   });
+
+  /// Backward compatibility alias for harshTruth
+  String get harshTruth => productTruth;
+
+  /// Backward compatibility alias for percentRemoved
+  int get percentRemoved => scopeReduction;
 
   /// Factory constructor to generate a [TrimSession] from a live [TrimResult].
   factory TrimSession.fromTrimResult({
@@ -49,6 +57,7 @@ class TrimSession {
     final total = mustHaves.length + discardedBloat.length;
     final survivors = mustHaves.length;
     final cuts = discardedBloat.length;
+    final reduction = total > 0 ? ((cuts / total) * 100).round() : 0;
 
     return TrimSession(
       id: id ?? DateTime.now().microsecondsSinceEpoch.toString(),
@@ -60,10 +69,11 @@ class TrimSession {
       mustHaves: mustHaves,
       discardedBloat: discardedBloat,
       buildOrder: List<String>.from(result.buildOrder),
-      harshTruth: result.harshTruth,
+      productTruth: result.harshTruth,
       totalFeatureCount: total,
       survivorCount: survivors,
       cutCount: cuts,
+      scopeReduction: reduction,
       isLocked: isLocked,
     );
   }
@@ -77,14 +87,8 @@ class TrimSession {
       mustHaves: mustHaves,
       discardedBloat: discardedBloat,
       buildOrder: buildOrder,
-      harshTruth: harshTruth,
+      harshTruth: productTruth,
     );
-  }
-
-  /// Percentage of total features cut (0-100)
-  int get percentRemoved {
-    if (totalFeatureCount == 0) return 0;
-    return ((cutCount / totalFeatureCount) * 100).round();
   }
 
   TrimSession copyWith({
@@ -97,10 +101,11 @@ class TrimSession {
     List<MustHave>? mustHaves,
     List<DiscardedFeature>? discardedBloat,
     List<String>? buildOrder,
-    String? harshTruth,
+    String? productTruth,
     int? totalFeatureCount,
     int? survivorCount,
     int? cutCount,
+    int? scopeReduction,
     bool? isLocked,
   }) {
     return TrimSession(
@@ -113,10 +118,11 @@ class TrimSession {
       mustHaves: mustHaves ?? this.mustHaves,
       discardedBloat: discardedBloat ?? this.discardedBloat,
       buildOrder: buildOrder ?? this.buildOrder,
-      harshTruth: harshTruth ?? this.harshTruth,
+      productTruth: productTruth ?? this.productTruth,
       totalFeatureCount: totalFeatureCount ?? this.totalFeatureCount,
       survivorCount: survivorCount ?? this.survivorCount,
       cutCount: cutCount ?? this.cutCount,
+      scopeReduction: scopeReduction ?? this.scopeReduction,
       isLocked: isLocked ?? this.isLocked,
     );
   }
@@ -132,10 +138,12 @@ class TrimSession {
       'mustHaves': mustHaves.map((e) => e.toJson()).toList(),
       'discardedBloat': discardedBloat.map((e) => e.toJson()).toList(),
       'buildOrder': buildOrder,
-      'harshTruth': harshTruth,
+      'productTruth': productTruth,
+      'harshTruth': productTruth, // for backward compatibility
       'totalFeatureCount': totalFeatureCount,
       'survivorCount': survivorCount,
       'cutCount': cutCount,
+      'scopeReduction': scopeReduction,
       'isLocked': isLocked,
     };
   }
@@ -152,6 +160,10 @@ class TrimSession {
     final total = json['totalFeatureCount'] as int? ?? (mustHaves.length + discardedBloat.length);
     final survivors = json['survivorCount'] as int? ?? mustHaves.length;
     final cuts = json['cutCount'] as int? ?? discardedBloat.length;
+    final reduction = json['scopeReduction'] as int? ??
+        (total > 0 ? ((cuts / total) * 100).round() : 0);
+
+    final truth = (json['productTruth'] ?? json['harshTruth']) as String? ?? '';
 
     return TrimSession(
       id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
@@ -165,63 +177,15 @@ class TrimSession {
       mustHaves: mustHaves,
       discardedBloat: discardedBloat,
       buildOrder: buildOrder,
-      harshTruth: json['harshTruth'] as String? ?? '',
+      productTruth: truth,
       totalFeatureCount: total,
       survivorCount: survivors,
       cutCount: cuts,
+      scopeReduction: reduction,
       isLocked: json['isLocked'] as bool? ?? false,
     );
   }
 
-  /// Formats the MVP summary into the clean Markdown document specified in Section 24.
-  String toMarkdown() {
-    final buffer = StringBuffer();
-    buffer.writeln('# $projectName');
-    buffer.writeln();
-    buffer.writeln('## Core Value');
-    buffer.writeln(coreValue);
-    buffer.writeln();
-    buffer.writeln('## MVP');
-    buffer.writeln();
-    buffer.writeln('### Must-Haves');
-    for (var i = 0; i < mustHaves.length; i++) {
-      final item = mustHaves[i];
-      buffer.writeln('${i + 1}. **${item.feature}**');
-      if (item.reason.isNotEmpty) {
-        buffer.writeln('   _${item.reason}_');
-      }
-    }
-    buffer.writeln();
-    buffer.writeln('### Explicitly Cut');
-    if (discardedBloat.isEmpty) {
-      buffer.writeln('_None. Idea is fully focused._');
-    } else {
-      for (final item in discardedBloat) {
-        buffer.writeln('- ~~${item.feature}~~: _${item.reason}_');
-      }
-    }
-    buffer.writeln();
-    buffer.writeln('## Build First');
-    for (var i = 0; i < buildOrder.length; i++) {
-      buffer.writeln('${i + 1}. ${buildOrder[i]}');
-    }
-    buffer.writeln();
-    buffer.writeln('## Product Truth');
-    buffer.writeln();
-    buffer.writeln(harshTruth);
-    buffer.writeln();
-    buffer.writeln('## MVP Status');
-    buffer.writeln(isLocked ? 'Locked' : 'Unlocked');
-    buffer.writeln();
-    buffer.writeln('## Scope Reduction');
-    if (totalFeatureCount > survivorCount) {
-      buffer.writeln('$totalFeatureCount → $survivorCount');
-      buffer.writeln('$percentRemoved% removed');
-    } else {
-      buffer.writeln('$totalFeatureCount FEATURES · FULLY FOCUSED');
-      buffer.writeln('0% removed');
-    }
-
-    return buffer.toString();
-  }
+  /// Formats the MVP summary into the clean Markdown document specified for EXPORT MVP.
+  String toMarkdown() => toTrimResult().toMarkdown(isLocked: isLocked);
 }

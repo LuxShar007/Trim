@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import '../core/animations/spring_physics.dart';
 import '../core/theme/app_colors.dart';
@@ -8,6 +9,7 @@ import '../models/trim_result.dart';
 import '../models/trim_session.dart';
 import '../services/trim_session_repository.dart';
 import '../widgets/trim_glass_button.dart';
+import '../widgets/trim_glass_surface.dart';
 import '../widgets/trim_morph_card.dart';
 import '../widgets/trim_scope_metric.dart';
 
@@ -120,10 +122,16 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
     final box = context.findRenderObject() as RenderBox?;
     final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
 
+    final markdown = _result.toMarkdown(isLocked: _isLocked);
+
     try {
+      // Ensure clipboard copy immediately succeeds across platforms
+      await Clipboard.setData(ClipboardData(text: markdown));
+      HapticsUtil.lightClick();
+
       await SharePlus.instance.share(
         ShareParams(
-          text: _result.toMarkdown(isLocked: _isLocked),
+          text: markdown,
           subject: '${_result.projectName} — Trimmed MVP Spec',
           sharePositionOrigin: origin,
         ),
@@ -282,16 +290,9 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                               color: const Color(0xFFD4D4D8),
                             ),
                           ),
-                          const SizedBox(height: 16.0),
+                          const SizedBox(height: 28.0),
 
-                          // 3. Scope Metric (Section 16 dynamic survivors & percent removed)
-                          TrimScopeMetric(
-                            totalFeatures: totalFeatures,
-                            survivorsCount: survivorsCount,
-                          ),
-                          const SizedBox(height: 24.0),
-
-                          // 4. THE CORE
+                          // 3. THE CORE
                           Row(
                             children: [
                               Container(
@@ -307,16 +308,21 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                                 'THE CORE',
                                 style: AppTypography.monoHeader.copyWith(
                                   color: AppColors.emerald,
+                                  fontSize: 11.5,
+                                  letterSpacing: 1.0,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '(${_result.mustHaves.length} Must-Haves)',
-                                style: AppTypography.monoCounter,
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8.0),
+                          const SizedBox(height: 3.0),
+                          Text(
+                            '${_result.mustHaves.length} Must-Haves',
+                            style: AppTypography.monoCounter.copyWith(
+                              fontSize: 12.0,
+                              color: const Color(0xFFA1A1AA),
+                            ),
+                          ),
+                          const SizedBox(height: 10.0),
 
                           if (_result.mustHaves.isEmpty)
                             Padding(
@@ -341,9 +347,9 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                               );
                             }),
 
-                          const SizedBox(height: 24.0),
+                          const SizedBox(height: 28.0),
 
-                          // 5. THE NOISE (Section 15 Progressive Disclosure & Section 17 Empty State)
+                          // 4. THE NOISE
                           Row(
                             children: [
                               Container(
@@ -359,49 +365,27 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                                 'THE NOISE',
                                 style: AppTypography.monoHeader.copyWith(
                                   color: const Color(0xFFA1A1AA),
+                                  fontSize: 11.5,
+                                  letterSpacing: 1.0,
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                '(${_result.discardedBloat.length} Discarded)',
-                                style: AppTypography.monoCounter,
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8.0),
+                          const SizedBox(height: 3.0),
+                          Text(
+                            '${_result.discardedBloat.length} Discarded',
+                            style: AppTypography.monoCounter.copyWith(
+                              fontSize: 12.0,
+                              color: const Color(0xFF71717A),
+                            ),
+                          ),
+                          const SizedBox(height: 10.0),
 
-                          // Empty noise state or noise cards
-                          if (_result.discardedBloat.isEmpty)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 10.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'NOTHING TO CUT.',
-                                    style: AppTypography.monoHeader.copyWith(
-                                      fontSize: 11.5,
-                                      color: const Color(0xFFE4E4E7),
-                                      letterSpacing: 1.0,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4.0),
-                                  Text(
-                                    'This idea is already focused.',
-                                    style: AppTypography.bodySmall.copyWith(
-                                      fontSize: 12.5,
-                                      color: const Color(0xFF71717A),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          else
-                            ..._buildNoiseCards(),
+                          _buildNoiseSection(),
 
-                          // 6. BUILD FIRST (Minimal build sequence)
+                          // 5. BUILD FIRST (Minimal build sequence)
                           if (_result.buildOrder.isNotEmpty) ...[
-                            const SizedBox(height: 24.0),
+                            const SizedBox(height: 28.0),
                             Row(
                               children: [
                                 Container(
@@ -417,16 +401,21 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                                   'BUILD FIRST',
                                   style: AppTypography.monoHeader.copyWith(
                                     color: const Color(0xFF38BDF8),
+                                    fontSize: 11.5,
+                                    letterSpacing: 1.0,
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  '(${_result.buildOrder.length} Steps)',
-                                  style: AppTypography.monoCounter,
                                 ),
                               ],
                             ),
-                            const SizedBox(height: 8.0),
+                            const SizedBox(height: 3.0),
+                            Text(
+                              '${_result.buildOrder.length} Steps',
+                              style: AppTypography.monoCounter.copyWith(
+                                fontSize: 12.0,
+                                color: const Color(0xFF71717A),
+                              ),
+                            ),
+                            const SizedBox(height: 10.0),
                             ..._result.buildOrder.asMap().entries.map((entry) {
                               final stepNumber = (entry.key + 1).toString().padLeft(2, '0');
                               return Padding(
@@ -470,14 +459,23 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                             }),
                           ],
 
-                          const SizedBox(height: 26.0),
+                          const SizedBox(height: 28.0),
 
-                          // 7. PRODUCT TRUTH (Concise, restrained orange accent, normal typography)
+                          // 6. PRODUCT TRUTH
                           _buildProductTruthBlock(),
 
-                          const SizedBox(height: 24.0),
+                          const SizedBox(height: 28.0),
 
-                          // 8. LOCK MVP (Sections 29, 30, 31)
+                          // 7. SCOPE:
+                          TrimScopeMetric(
+                            totalFeatures: totalFeatures,
+                            survivorsCount: survivorsCount,
+                            showHeader: true,
+                          ),
+
+                          const SizedBox(height: 28.0),
+
+                          // 8. MVP LOCKED (Sections 29, 30, 31)
                           _buildMvpLockSection(),
 
                           const SizedBox(height: 14.0),
@@ -488,7 +486,7 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                               return TrimGlassButton(
                                 label: 'EXPORT MVP',
                                 icon: Icons.ios_share_rounded,
-                                variant: TrimButtonVariant.glass,
+                                variant: TrimButtonVariant.primary,
                                 morphState: _exportState,
                                 loadingLabel: 'EXPORTING...',
                                 successLabel: 'EXPORTED ✓',
@@ -498,17 +496,17 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                           ),
                           const SizedBox(height: 14.0),
 
-                          // Secondary Action
+                          // 10. TRIM ANOTHER IDEA
                           Center(
                             child: TextButton(
                               onPressed: _softExit,
                               child: Text(
-                                widget.isFromHistory ? 'Back to Workspace' : 'Trim Another Idea',
-                                style: AppTypography.bodyMedium.copyWith(
-                                  fontSize: 13.0,
+                                widget.isFromHistory ? 'BACK TO WORKSPACE' : 'TRIM ANOTHER IDEA',
+                                style: AppTypography.monoLabel.copyWith(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.8,
                                   color: const Color(0xFF71717A),
-                                  decoration: TextDecoration.underline,
-                                  decorationColor: const Color(0xFF71717A).withValues(alpha: 0.6),
                                 ),
                               ),
                             ),
@@ -526,68 +524,110 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
     );
   }
 
-  /// Section 15: Progressive Noise Disclosure
-  List<Widget> _buildNoiseCards() {
+  /// Section 15: Progressive Noise Disclosure with Spring Physics
+  Widget _buildNoiseSection() {
     final noiseItems = _result.discardedBloat;
-    final bool hasLongNoise = noiseItems.length > 5;
-    final displayedItems = (hasLongNoise && !_showAllNoise)
-        ? noiseItems.take(4).toList()
-        : noiseItems;
 
-    final widgets = <Widget>[];
-
-    for (var i = 0; i < displayedItems.length; i++) {
-      widgets.add(
-        RepaintBoundary(
-          child: TrimMorphCard(
-            index: i,
-            text: displayedItems[i].feature,
-            reason: displayedItems[i].reason,
-            isPass: false,
-          ),
-        ),
-      );
-    }
-
-    if (hasLongNoise && !_showAllNoise) {
-      final remainingCount = noiseItems.length - 4;
-      widgets.add(
-        Padding(
-          padding: const EdgeInsets.only(top: 6.0, bottom: 4.0),
-          child: Center(
-            child: TextButton.icon(
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFFA1A1AA),
-                backgroundColor: const Color(0xFF131318),
-                padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8.0),
-                  side: const BorderSide(color: Color(0xFF24242A), width: 0.8),
-                ),
+    if (noiseItems.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'NOTHING TO CUT.',
+              style: AppTypography.monoHeader.copyWith(
+                fontSize: 12.0,
+                color: const Color(0xFFE4E4E7),
+                letterSpacing: 1.0,
               ),
-              icon: const Icon(Icons.expand_more_rounded, size: 16),
-              label: Text(
-                '+ $remainingCount MORE CUT',
-                style: AppTypography.monoLabel.copyWith(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                  color: const Color(0xFFD4D4D8),
-                ),
-              ),
-              onPressed: () {
-                HapticsUtil.lightClick();
-                setState(() {
-                  _showAllNoise = true;
-                });
-              },
             ),
-          ),
+            const SizedBox(height: 4.0),
+            Text(
+              'This idea is already focused.',
+              style: AppTypography.bodySmall.copyWith(
+                fontSize: 13.0,
+                color: const Color(0xFF71717A),
+              ),
+            ),
+          ],
         ),
       );
     }
 
-    return widgets;
+    final bool hasLongNoise = noiseItems.length > 5;
+    final primaryItems = hasLongNoise ? noiseItems.take(4).toList() : noiseItems;
+    final secondaryItems = hasLongNoise ? noiseItems.skip(4).toList() : <DiscardedFeature>[];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ...primaryItems.asMap().entries.map((entry) {
+          return RepaintBoundary(
+            child: TrimMorphCard(
+              index: entry.key,
+              text: entry.value.feature,
+              reason: entry.value.reason,
+              isPass: false,
+            ),
+          );
+        }),
+        if (hasLongNoise) ...[
+          AnimatedSize(
+            duration: const Duration(milliseconds: 320),
+            curve: SpringPhysics.snapCurve,
+            alignment: Alignment.topCenter,
+            child: _showAllNoise
+                ? Column(
+                    children: secondaryItems.asMap().entries.map((entry) {
+                      return RepaintBoundary(
+                        child: TrimMorphCard(
+                          index: entry.key + 4,
+                          text: entry.value.feature,
+                          reason: entry.value.reason,
+                          isPass: false,
+                        ),
+                      );
+                    }).toList(),
+                  )
+                : const SizedBox.shrink(),
+          ),
+          if (!_showAllNoise)
+            Padding(
+              padding: const EdgeInsets.only(top: 6.0, bottom: 4.0),
+              child: Center(
+                child: TextButton.icon(
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFFA1A1AA),
+                    backgroundColor: const Color(0xFF131318),
+                    padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 8.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                      side: const BorderSide(color: Color(0xFF24242A), width: 0.8),
+                    ),
+                  ),
+                  icon: const Icon(Icons.expand_more_rounded, size: 16),
+                  label: Text(
+                    '+ ${secondaryItems.length} MORE CUT',
+                    style: AppTypography.monoLabel.copyWith(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: const Color(0xFFD4D4D8),
+                    ),
+                  ),
+                  onPressed: () {
+                    HapticsUtil.lightClick();
+                    setState(() {
+                      _showAllNoise = true;
+                    });
+                  },
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
   }
 
   /// Sections 29, 30, 31: Lock MVP & Reopen MVP
@@ -598,17 +638,10 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
     if (_isLocked) {
       // Locked State (Section 30 & 31)
       return RepaintBoundary(
-        child: Container(
-          width: double.infinity,
+        child: TrimGlassSurface(
+          intensity: TrimGlassIntensity.low,
+          accentColor: AppColors.emerald,
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
-          decoration: BoxDecoration(
-            color: const Color(0xFF07120D),
-            borderRadius: BorderRadius.circular(10.0),
-            border: Border.all(
-              color: AppColors.emerald.withValues(alpha: 0.35),
-              width: 0.9,
-            ),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -683,19 +716,10 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
     if (_showLockConfirmation) {
       // Restrained glass confirmation surface (Section 29)
       return RepaintBoundary(
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutBack,
-          width: double.infinity,
+        child: TrimGlassSurface(
+          intensity: TrimGlassIntensity.medium,
+          accentColor: AppColors.emerald,
           padding: const EdgeInsets.all(16.0),
-          decoration: BoxDecoration(
-            color: const Color(0xFF0E0E14),
-            borderRadius: BorderRadius.circular(10.0),
-            border: Border.all(
-              color: const Color(0xFF32323D),
-              width: 1.0,
-            ),
-          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -842,60 +866,53 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
       builder: (context, child) {
         final val = _truthController.value;
         final cardSpring = SpringPhysics.snapCurve.transform(val);
-        final cardScale = 0.96 + (cardSpring * 0.04);
+        final cardScale = 0.98 + (cardSpring * 0.02);
 
-        final textT = ((val - 0.3) / 0.7).clamp(0.0, 1.0);
+        final textT = ((val - 0.25) / 0.75).clamp(0.0, 1.0);
         final textOpacity = Curves.easeIn.transform(textT);
 
         return Transform.scale(
           scale: cardScale,
-          alignment: Alignment.center,
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0C0908),
-              borderRadius: BorderRadius.circular(10.0),
-              border: Border.all(
-                color: AppColors.orange.withValues(alpha: 0.25),
-                width: 0.9,
+          alignment: Alignment.centerLeft,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 5,
+                    height: 5,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.orange,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Text(
+                    'PRODUCT TRUTH',
+                    style: AppTypography.monoHeader.copyWith(
+                      fontSize: 11.0,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.9,
+                      color: AppColors.orange,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 5,
-                      height: 5,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.orange,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'PRODUCT TRUTH',
-                      style: AppTypography.monoHeader.copyWith(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.9,
-                        color: AppColors.orange,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 7.0),
-                Opacity(
-                  opacity: textOpacity,
-                  child: Text(
-                    _result.harshTruth,
-                    style: AppTypography.productTruth,
+              const SizedBox(height: 8.0),
+              Opacity(
+                opacity: textOpacity,
+                child: Text(
+                  _result.harshTruth,
+                  style: AppTypography.productTruth.copyWith(
+                    fontSize: 15.0,
+                    height: 1.5,
+                    fontWeight: FontWeight.w500,
+                    color: const Color(0xFFF4F4F5),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },

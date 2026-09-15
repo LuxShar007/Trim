@@ -158,7 +158,7 @@ class _ApiKeyModalState extends State<ApiKeyModal> {
           const SizedBox(height: 10),
           Text(
             'Trim communicates directly with Groq (openai/gpt-oss-120b). Your key is stored securely only on your device.',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               color: const Color(0xFFA1A1AA),
               height: 1.4,

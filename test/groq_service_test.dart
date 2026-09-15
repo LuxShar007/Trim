@@ -63,21 +63,18 @@ void main() {
 
       final markdown = result.toMarkdown();
 
-      expect(markdown, contains('# TrimTest'));
-      expect(markdown, contains('## Core Value'));
+      expect(markdown, contains('# TRIMMED MVP'));
+      expect(markdown, contains('TrimTest'));
       expect(markdown, contains('Test Core Value'));
-      expect(markdown, contains('## MVP'));
-      expect(markdown, contains('### Must-Haves'));
+      expect(markdown, contains('## Must-Haves'));
       expect(markdown, contains('1. **Feature Alpha**'));
-      expect(markdown, contains('### Explicitly Cut'));
+      expect(markdown, contains('## Discarded Bloat'));
       expect(markdown, contains('- ~~Bloat Omega~~: _Redundant distraction_'));
       expect(markdown, contains('## Build First'));
       expect(markdown, contains('## Product Truth'));
       expect(markdown, contains('Simplicity always wins.'));
-      expect(markdown, contains('## MVP Status'));
-      expect(markdown, contains('Unlocked'));
-      expect(markdown, contains('## Scope Reduction'));
-      expect(markdown, contains('3 → 2'));
+      expect(markdown, contains('## Scope'));
+      expect(markdown, contains('3 → 2 SURVIVE'));
     });
 
     test('correctly parses new rich schema with mvp_score, feature reasons, and build_order', () {
@@ -185,36 +182,24 @@ void main() {
   group('GroqService HTTP Client Tests', () {
     test('successful trim execution with mock client verifying request structure', () async {
       final mockClient = MockClient((request) async {
-        expect(request.url.toString(), equals('https://api.groq.com/openai/v1/chat/completions'));
-        expect(request.headers['Authorization'], equals('Bearer test_key_123'));
+        expect(request.url.path, equals('/api/trim'));
         expect(request.headers['Content-Type'], equals('application/json'));
 
         final body = json.decode(request.body) as Map<String, dynamic>;
-        expect(body['model'], equals('openai/gpt-oss-120b'));
-        expect(body['temperature'], equals(0.2));
-        expect(body['response_format'], equals({'type': 'json_object'}));
-        expect(body['messages'], isList);
+        expect(body['rawIdea'], equals('A massive bloated idea with 50 features'));
 
         final mockResponsePayload = {
-          'choices': [
-            {
-              'message': {
-                'content': json.encode({
-                  'project_name': 'RazorApp',
-                  'core_value': 'One feature done right.',
-                  'mvp_score': 91,
-                  'must_haves': [
-                    {'feature': 'Core Action', 'reason': 'Essential'}
-                  ],
-                  'discarded_bloat': [
-                    {'feature': 'Everything else', 'reason': 'Bloat'}
-                  ],
-                  'build_order': ['01 Core Action'],
-                  'harsh_truth': 'Bloat will kill your app before users do.',
-                }),
-              },
-            }
+          'project_name': 'RazorApp',
+          'core_value': 'One feature done right.',
+          'mvp_score': 91,
+          'must_haves': [
+            {'feature': 'Core Action', 'reason': 'Essential'}
           ],
+          'discarded_bloat': [
+            {'feature': 'Everything else', 'reason': 'Bloat'}
+          ],
+          'build_order': ['01 Core Action'],
+          'harsh_truth': 'Bloat will kill your app before users do.',
         };
 
         return http.Response(json.encode(mockResponsePayload), 200);
@@ -223,7 +208,6 @@ void main() {
       final service = GroqService(client: mockClient);
       final result = await service.trimAppIdea(
         rawIdea: 'A massive bloated idea with 50 features',
-        apiKey: 'test_key_123',
       );
 
       expect(result.projectName, equals('RazorApp'));
@@ -318,6 +302,7 @@ void main() {
         () => service.trimAppIdea(
           rawIdea: 'Test Idea',
           apiKey: 'key_123',
+          initialBackoff: Duration.zero,
         ),
         throwsA(isA<GroqRateLimitException>()),
       );
@@ -360,6 +345,7 @@ void main() {
         () => service.trimAppIdea(
           rawIdea: 'Test Idea',
           apiKey: 'key_123',
+          initialBackoff: Duration.zero,
         ),
         throwsA(isA<GroqServerException>()),
       );
@@ -406,14 +392,9 @@ void main() {
           'receive notifications, and subscribe to premium plans.';
 
       final mockClient = MockClient((request) async {
+        expect(request.url.path, equals('/api/trim'));
         final body = json.decode(request.body) as Map<String, dynamic>;
-        expect(body['model'], equals('openai/gpt-oss-120b'));
-        expect(body['temperature'], equals(0.2));
-        expect(body['response_format'], equals({'type': 'json_object'}));
-
-        final userMessage = (body['messages'] as List)
-            .firstWhere((m) => m['role'] == 'user')['content'] as String;
-        expect(userMessage, equals(studentInput));
+        expect(body['rawIdea'], equals(studentInput));
 
         final mockResponse = {
           'choices': [

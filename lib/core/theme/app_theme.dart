@@ -19,7 +19,7 @@ class AppTheme {
         error: AppColors.cutRed,
         onSurface: AppColors.textPrimary,
       ),
-      textTheme: GoogleFonts.interTextTheme(
+      textTheme: GoogleFonts.manropeTextTheme(
         ThemeData.dark().textTheme,
       ).apply(
         bodyColor: AppColors.textPrimary,

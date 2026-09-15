@@ -310,7 +310,7 @@ class _LiquidSeparationBoundaryState extends State<LiquidSeparationBoundary>
                                       _triageBloatExamples[_bloatIndex],
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.inter(
+                                      style: GoogleFonts.manrope(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w400,
                                         color: const Color(0xFFA1A1AA),

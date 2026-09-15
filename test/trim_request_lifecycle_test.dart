@@ -35,9 +35,7 @@ void main() {
 
   group('TRIM — STEP 10 TEST MATRIX: Request Lifecycle & Retry Verification', () {
     setUp(() async {
-      SharedPreferences.setMockInitialValues({
-        'groq_api_key': 'gsk_valid_test_key_for_lifecycle_matrix',
-      });
+      SharedPreferences.setMockInitialValues({});
     });
 
     test('TEST 1: Idea A -> Trim -> Verdict completes successfully', () async {
@@ -131,9 +129,9 @@ void main() {
 
       final service = GroqService(client: mockClient);
 
-      // Attempt 1: Fails
+      // Attempt 1: Fails with maxRetries: 0 to test manual retry path
       await expectLater(
-        service.trimAppIdea(rawIdea: 'Idea C', requestId: 1),
+        service.trimAppIdea(rawIdea: 'Idea C', requestId: 1, maxRetries: 0),
         throwsA(isA<GroqServerException>()),
       );
 
@@ -162,7 +160,12 @@ void main() {
         MaterialApp(
           home: TrimmingScreen(
             rawIdea: 'Test Idea for Retry UI',
-            engine: TrimEngine(service: GroqService(client: mockClient)),
+            engine: TrimEngine(
+              service: GroqService(
+                client: mockClient,
+                defaultMaxRetries: 0,
+              ),
+            ),
           ),
         ),
       );
@@ -172,7 +175,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       // Error screen should display specific header, NOT collapsed generic message
-      expect(find.text('GROQ SERVER ERROR'), findsOneWidget);
+      expect(find.text('SERVICE TEMPORARILY BUSY'), findsOneWidget);
       expect(find.text('RETRY TRIMMING'), findsOneWidget);
 
       // Tap Retry Trimming
@@ -181,7 +184,7 @@ void main() {
 
       // UI must reset to UNDERSTANDING stage immediately while request 2 is in flight
       expect(find.text('UNDERSTANDING'), findsOneWidget);
-      expect(find.text('GROQ SERVER ERROR'), findsNothing);
+      expect(find.text('SERVICE TEMPORARILY BUSY'), findsNothing);
 
       // Complete attempt 2 successfully
       retryCompleter.complete(
@@ -331,6 +334,163 @@ void main() {
       expect(const GroqUnauthorizedException().errorType, equals(TrimErrorType.httpError));
       expect(const GroqRateLimitException().errorType, equals(TrimErrorType.httpError));
       expect(const GroqParseException('bad json').errorType, equals(TrimErrorType.parseError));
+    });
+
+    test('HTTP 429 Rate Limit auto-retries using retry-after and succeeds on attempt 2', () async {
+      int attempts = 0;
+      final mockClient = MockClient((request) async {
+        attempts++;
+        if (attempts == 1) {
+          return http.Response(
+            json.encode({'error': {'message': 'Rate limit reached. Please wait.'}}),
+            429,
+            headers: {'retry-after': '1'},
+          );
+        }
+        return http.Response(
+          json.encode({
+            'choices': [
+              {
+                'message': {'content': sampleTriageJson}
+              }
+            ]
+          }),
+          200,
+        );
+      });
+
+      final service = GroqService(
+        client: mockClient,
+        defaultInitialBackoff: Duration.zero,
+      );
+
+      final result = await service.trimAppIdea(rawIdea: 'Test 429 recovery');
+      expect(result.projectName, equals('FocusLoop'));
+      expect(attempts, equals(2), reason: 'Succeeded on second attempt after 429 retry');
+    });
+
+    test('HTTP 429 Rate Limit exhausts max 2 retries and throws GroqRateLimitException with parsed retryAfter', () async {
+      int attempts = 0;
+      final mockClient = MockClient((request) async {
+        attempts++;
+        return http.Response(
+          json.encode({'error': {'message': 'Rate limit reached. Try again in 4.5s.'}}),
+          429,
+          headers: {'retry-after': '4'},
+        );
+      });
+
+      final service = GroqService(
+        client: mockClient,
+        defaultInitialBackoff: Duration.zero,
+      );
+
+      try {
+        await service.trimAppIdea(rawIdea: 'Test 429 exhaustion');
+        fail('Should have thrown GroqRateLimitException');
+      } on GroqRateLimitException catch (e) {
+        expect(e.retryAfter, equals(const Duration(seconds: 4)));
+        expect(attempts, equals(3), reason: 'Attempt 1 + 2 retries = 3 total attempts');
+      }
+    });
+
+    test('HTTP 401 Unauthorized fails immediately on first attempt without retrying', () async {
+      int attempts = 0;
+      final mockClient = MockClient((request) async {
+        attempts++;
+        return http.Response(
+          json.encode({'error': {'message': 'Invalid API Key'}}),
+          401,
+        );
+      });
+
+      final service = GroqService(client: mockClient);
+
+      await expectLater(
+        service.trimAppIdea(rawIdea: 'Test 401 no retry'),
+        throwsA(isA<GroqUnauthorizedException>()),
+      );
+      expect(attempts, equals(1), reason: '401 Client error must never retry');
+    });
+
+    test('Single-flight request protection: active request flag is maintained and released', () async {
+      GroqService.resetInFlightState();
+      expect(GroqService.isRequestInFlight, isFalse);
+
+      final completer = Completer<http.Response>();
+      final mockClient = MockClient((request) => completer.future);
+
+      final service = GroqService(client: mockClient);
+
+      final future = service.trimAppIdea(rawIdea: 'Single flight test');
+      expect(GroqService.isRequestInFlight, isTrue, reason: 'Request must be marked in-flight while waiting');
+
+      completer.complete(
+        http.Response(
+          json.encode({
+            'choices': [
+              {'message': {'content': sampleTriageJson}}
+            ]
+          }),
+          200,
+        ),
+      );
+
+      await future;
+      expect(GroqService.isRequestInFlight, isFalse, reason: 'Request flag must be cleared after completion');
+    });
+
+    test('Single-flight request protection: subsequent concurrent request joins in-flight request', () async {
+      GroqService.resetInFlightState();
+
+      int requestsCount = 0;
+      final completer = Completer<http.Response>();
+      final token1 = TrimCancellableToken();
+      final token2 = TrimCancellableToken();
+
+      final service = GroqService(
+        client: MockClient((request) {
+          requestsCount++;
+          return completer.future;
+        }),
+      );
+
+      final future1 = service.trimAppIdea(
+        rawIdea: 'First idea',
+        cancelToken: token1,
+      );
+
+      await Future.delayed(Duration.zero);
+
+      expect(token1.isCancelled, isFalse);
+      expect(GroqService.isRequestInFlight, isTrue);
+      expect(requestsCount, equals(1));
+
+      // Trigger second concurrent request -> coalesces into active in-flight request
+      final future2 = service.trimAppIdea(
+        rawIdea: 'First idea',
+        cancelToken: token2,
+      );
+
+      expect(requestsCount, equals(1), reason: 'Concurrent request must not send a second HTTP request');
+
+      completer.complete(
+        http.Response(
+          json.encode({
+            'choices': [
+              {'message': {'content': sampleTriageJson}}
+            ]
+          }),
+          200,
+        ),
+      );
+
+      final result1 = await future1;
+      final result2 = await future2;
+      expect(result1.projectName, equals('FocusLoop'));
+      expect(result2.projectName, equals('FocusLoop'));
+      expect(requestsCount, equals(1), reason: 'Total HTTP requests transmitted must be exactly 1');
+      expect(GroqService.isRequestInFlight, isFalse);
     });
   });
 }

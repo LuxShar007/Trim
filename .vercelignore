@@ -1,0 +1,13 @@
+# Vercel Deployment Ignore
+android/
+ios/
+linux/
+macos/
+windows/
+.dart_tool/
+.gradle/
+.idea/
+build/
+test/
+*.iml
+.env*

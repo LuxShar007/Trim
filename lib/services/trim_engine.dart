@@ -22,6 +22,8 @@ class TrimEngine {
     http.Client? client,
     TrimCancellableToken? cancelToken,
     int? requestId,
+    int? maxRetries,
+    Duration? initialBackoff,
   }) async {
     return await _service.trimAppIdea(
       rawIdea: rawIdea,
@@ -29,6 +31,8 @@ class TrimEngine {
       client: client,
       cancelToken: cancelToken,
       requestId: requestId,
+      maxRetries: maxRetries,
+      initialBackoff: initialBackoff,
     );
   }
 

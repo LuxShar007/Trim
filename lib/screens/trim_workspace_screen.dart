@@ -13,6 +13,7 @@ import 'trim_results_screen.dart';
 /// The Local Trim Workspace:
 /// A minimalist, personal, local-first product memory workspace.
 /// Zero cloud, zero authentication, zero account overhead.
+/// Opening a saved Trim result works completely OFFLINE and NEVER invokes Groq.
 class TrimWorkspaceScreen extends StatefulWidget {
   const TrimWorkspaceScreen({super.key});
 
@@ -49,6 +50,7 @@ class _TrimWorkspaceScreenState extends State<TrimWorkspaceScreen> {
   }
 
   Future<void> _openSession(TrimSession session) async {
+    // Opening a saved Trim result works completely OFFLINE with NO API calls
     await Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
@@ -56,8 +58,8 @@ class _TrimWorkspaceScreenState extends State<TrimWorkspaceScreen> {
           session: session,
           isFromHistory: true,
         ),
-        transitionDuration: const Duration(milliseconds: 350),
-        reverseTransitionDuration: const Duration(milliseconds: 250),
+        transitionDuration: const Duration(milliseconds: 320),
+        reverseTransitionDuration: const Duration(milliseconds: 240),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final springAnim = CurvedAnimation(
             parent: animation,
@@ -177,7 +179,7 @@ class _TrimWorkspaceScreenState extends State<TrimWorkspaceScreen> {
     );
   }
 
-  /// Section 28: Empty Workspace State
+  /// Empty Workspace State
   Widget _buildEmptyState() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
@@ -240,7 +242,7 @@ class _TrimWorkspaceScreenState extends State<TrimWorkspaceScreen> {
     );
   }
 
-  /// Populated Workspace List (Sections 25 & 27)
+  /// Populated Workspace List
   Widget _buildWorkspaceList() {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -259,7 +261,7 @@ class _TrimWorkspaceScreenState extends State<TrimWorkspaceScreen> {
           ),
           const SizedBox(height: 14.0),
 
-          // Dynamic Stats Telemetry Grid (Section 25)
+          // Dynamic Stats Grid: Calm product memory summary (not an analytics dashboard)
           TrimGlassSurface(
             intensity: TrimGlassIntensity.low,
             padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 16.0),
@@ -372,127 +374,169 @@ class _TrimWorkspaceScreenState extends State<TrimWorkspaceScreen> {
   }
 
   Widget _buildSessionCard(TrimSession session) {
+    final String reductionText = session.totalFeatureCount > session.survivorCount
+        ? '${session.totalFeatureCount} → ${session.survivorCount}'
+        : '${session.totalFeatureCount} FOCUSED';
+
+    final Color cardAccent = session.isLocked ? AppColors.emerald : const Color(0xFF2E2E36);
+
     return RepaintBoundary(
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () => _openSession(session),
-          borderRadius: BorderRadius.circular(10.0),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D0D11),
-              borderRadius: BorderRadius.circular(10.0),
-              border: Border.all(
-                color: session.isLocked
-                    ? AppColors.emerald.withValues(alpha: 0.3)
-                    : const Color(0xFF24242A),
-                width: 0.8,
-              ),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      child: TrimGlassSurface(
+        intensity: TrimGlassIntensity.low,
+        accentColor: cardAccent,
+        padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+        onTap: () => _openSession(session),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              session.projectName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: AppTypography.titleLarge.copyWith(
-                                fontSize: 15.0,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white,
-                              ),
+                      // Project Name in Manrope 600
+                      Expanded(
+                        child: Text(
+                          session.projectName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTypography.titleLarge.copyWith(
+                            fontSize: 15.0,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Locked / Unlocked State Badge
+                      if (session.isLocked)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6.0,
+                            vertical: 2.0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.emerald.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4.0),
+                            border: Border.all(
+                              color: AppColors.emerald.withValues(alpha: 0.4),
+                              width: 0.6,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          if (session.isLocked)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6.0,
-                                vertical: 2.0,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.emerald.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(4.0),
-                                border: Border.all(
-                                  color: AppColors.emerald.withValues(alpha: 0.4),
-                                  width: 0.6,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.lock_outline_rounded,
-                                    size: 10,
-                                    color: AppColors.emerald,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    'LOCKED',
-                                    style: AppTypography.monoChip.copyWith(
-                                      fontSize: 9.0,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.emerald,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                      const SizedBox(height: 6.0),
-                      Row(
-                        children: [
-                          // Scope reduction: 18 → 3
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6.0,
-                              vertical: 2.0,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF14141A),
-                              borderRadius: BorderRadius.circular(4.0),
-                            ),
-                            child: Text(
-                              session.totalFeatureCount > session.survivorCount
-                                  ? '${session.totalFeatureCount} → ${session.survivorCount}'
-                                  : '${session.totalFeatureCount} FOCUSED',
-                              style: AppTypography.monoLabel.copyWith(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.lock_rounded,
+                                size: 10,
                                 color: AppColors.emerald,
                               ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'LOCKED',
+                                style: AppTypography.monoChip.copyWith(
+                                  fontSize: 9.0,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.emerald,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6.0,
+                            vertical: 2.0,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF141418),
+                            borderRadius: BorderRadius.circular(4.0),
+                            border: Border.all(
+                              color: const Color(0xFF27272A),
+                              width: 0.6,
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatDate(session.createdAt),
-                            style: AppTypography.bodySmall.copyWith(
-                              fontSize: 11.5,
-                              color: const Color(0xFF71717A),
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(
+                                Icons.lock_open_rounded,
+                                size: 10,
+                                color: Color(0xFF71717A),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'UNLOCKED',
+                                style: AppTypography.monoChip.copyWith(
+                                  fontSize: 9.0,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF71717A),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6.0),
+                  Row(
+                    children: [
+                      // Scope Reduction in JetBrains Mono
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6.0,
+                          vertical: 2.0,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF14141A),
+                          borderRadius: BorderRadius.circular(4.0),
+                        ),
+                        child: Text(
+                          reductionText,
+                          style: AppTypography.monoLabel.copyWith(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.emerald,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+
+                      // Scope Reduction percentage
+                      if (session.scopeReduction > 0) ...[
+                        Text(
+                          '${session.scopeReduction}% CUT',
+                          style: AppTypography.monoLabel.copyWith(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFA1A1AA),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
+
+                      // Date in Manrope
+                      Text(
+                        _formatDate(session.createdAt),
+                        style: AppTypography.bodySmall.copyWith(
+                          fontSize: 11.5,
+                          color: const Color(0xFF71717A),
+                        ),
                       ),
                     ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: Color(0xFF52525B),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            const SizedBox(width: 8),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: Color(0xFF52525B),
+            ),
+          ],
         ),
       ),
     );

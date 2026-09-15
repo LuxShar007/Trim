@@ -267,17 +267,17 @@ class TrimResult {
     };
   }
 
-  /// Formats the MVP summary into the clean Markdown document specified in Section 24.
+  /// Formats the MVP summary into the clean Markdown document specified for EXPORT MVP.
   String toMarkdown({bool isLocked = false}) {
     final buffer = StringBuffer();
-    buffer.writeln('# $projectName');
+    buffer.writeln('# TRIMMED MVP');
     buffer.writeln();
-    buffer.writeln('## Core Value');
+    buffer.writeln(projectName);
+    buffer.writeln();
     buffer.writeln(coreValue);
     buffer.writeln();
-    buffer.writeln('## MVP');
+    buffer.writeln('## Must-Haves');
     buffer.writeln();
-    buffer.writeln('### Must-Haves');
     for (var i = 0; i < mustHaves.length; i++) {
       final item = mustHaves[i];
       buffer.writeln('${i + 1}. **${item.feature}**');
@@ -286,7 +286,8 @@ class TrimResult {
       }
     }
     buffer.writeln();
-    buffer.writeln('### Explicitly Cut');
+    buffer.writeln('## Discarded Bloat');
+    buffer.writeln();
     if (discardedBloat.isEmpty) {
       buffer.writeln('_None. Idea is fully focused._');
     } else {
@@ -296,6 +297,7 @@ class TrimResult {
     }
     buffer.writeln();
     buffer.writeln('## Build First');
+    buffer.writeln();
     for (var i = 0; i < buildOrder.length; i++) {
       buffer.writeln('${i + 1}. ${buildOrder[i]}');
     }
@@ -304,19 +306,21 @@ class TrimResult {
     buffer.writeln();
     buffer.writeln(harshTruth);
     buffer.writeln();
-    buffer.writeln('## MVP Status');
-    buffer.writeln(isLocked ? 'Locked' : 'Unlocked');
+    buffer.writeln('## Scope');
     buffer.writeln();
-    buffer.writeln('## Scope Reduction');
     final total = mustHaves.length + discardedBloat.length;
     final survivors = mustHaves.length;
     if (total > survivors) {
       final percentRemoved = ((discardedBloat.length / total) * 100).round();
-      buffer.writeln('$total → $survivors');
-      buffer.writeln('$percentRemoved% removed');
+      buffer.writeln('$total → $survivors SURVIVE');
+      buffer.writeln('$percentRemoved% SCOPE REMOVED');
     } else {
       buffer.writeln('$total FEATURES · FULLY FOCUSED');
-      buffer.writeln('0% removed');
+      buffer.writeln('0% SCOPE REMOVED');
+    }
+    if (isLocked) {
+      buffer.writeln();
+      buffer.writeln('MVP LOCKED');
     }
 
     return buffer.toString();

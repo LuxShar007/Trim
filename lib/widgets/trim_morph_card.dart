@@ -17,10 +17,21 @@ enum TrimCardState {
   collapsing,
 }
 
-/// The TrimMorphCard (Visual Design System V3):
-/// A disciplined liquid glass card that physically expands from its current position.
-/// No heavy glowing borders or loud shadows. OLED black canvas remains dominant.
-/// The card remains the exact SAME visual object throughout the transition.
+/// The TrimMorphCard:
+/// A custom liquid morphing card where the SAME physical surface expands and collapses
+/// in-place using spring physics.
+/// Coordinates:
+/// - card height
+/// - corner radius
+/// - surface opacity
+/// - border
+/// - subtle blur
+/// - internal spacing
+/// - chevron rotation
+/// - reason text opacity
+/// - reason text vertical offset
+///
+/// Ensures 120Hz/144Hz smoothness with internal RepaintBoundary and restrained blur.
 class TrimMorphCard extends StatefulWidget {
   final String text;
   final String? reason;
@@ -28,6 +39,7 @@ class TrimMorphCard extends StatefulWidget {
   final int index;
   final VoidCallback? onPurged;
   final bool initiallyExpanded;
+  final String? reasonLabel;
 
   const TrimMorphCard({
     super.key,
@@ -37,6 +49,7 @@ class TrimMorphCard extends StatefulWidget {
     this.index = 0,
     this.onPurged,
     this.initiallyExpanded = false,
+    this.reasonLabel,
   });
 
   @override
@@ -45,7 +58,7 @@ class TrimMorphCard extends StatefulWidget {
 
 class _TrimMorphCardState extends State<TrimMorphCard>
     with TickerProviderStateMixin {
-  // Press response controller (0.0 = unpressed 1.0 scale, 1.0 = pressed 0.98 scale)
+  // Press response controller (scale 1.0 -> 0.98 -> 1.0 via spring)
   late final AnimationController _pressController;
 
   // Anchored expansion controller (0.0 = collapsed, 1.0 = expanded)
@@ -80,10 +93,10 @@ class _TrimMorphCardState extends State<TrimMorphCard>
       upperBound: 1.5,
     );
 
-    // 2. Coordinated expansion animation with slight overshoot and soft settle
+    // 2. Coordinated expansion animation with physical snap and soft settle
     _morphController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 300),
+      duration: const Duration(milliseconds: 320),
       value: widget.initiallyExpanded ? 1.0 : 0.0,
     );
 
@@ -158,140 +171,169 @@ class _TrimMorphCardState extends State<TrimMorphCard>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_pressController, _morphAnimation, _purgeController]),
-      builder: (context, child) {
-        final pVal = _pressController.value;
-        final mVal = _morphAnimation.value;
-        final purgeVal = _purgeController.value;
+    // Material influence setup:
+    // Core: subtle emerald material influence
+    // Noise: subtle muted red/gray material influence
+    final Color accentColor = widget.isPass
+        ? AppColors.emerald
+        : const Color(0xFF9E4B56);
 
-        // If purge is complete, remove from layout
-        if (purgeVal >= 1.0) {
-          return const SizedBox.shrink();
-        }
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_pressController, _morphAnimation, _purgeController]),
+        builder: (context, child) {
+          final pVal = _pressController.value;
+          final mVal = _morphAnimation.value;
+          final purgeVal = _purgeController.value;
 
-        // Noise squeeze dynamics (if triggered)
-        final double purgeScaleX;
-        final double purgeScaleY;
-        final double purgeTranslateX;
-        final double purgeOpacity;
-        final double purgeHeightFactor;
+          // If purge is complete, remove from layout
+          if (purgeVal >= 1.0) {
+            return const SizedBox.shrink();
+          }
 
-        if (purgeVal > 0.0) {
-          final t = purgeVal;
-          final squeeze = Curves.easeInCubic.transform(t);
-          purgeScaleX = 1.0 - (squeeze * 0.25);
-          purgeScaleY = 1.0 - (squeeze * 0.35);
-          purgeTranslateX = squeeze * 28.0;
-          purgeOpacity = (1.0 - (t * 1.3)).clamp(0.0, 1.0);
-          purgeHeightFactor = (1.0 - (t * 0.8)).clamp(0.0, 1.0);
-        } else {
-          purgeScaleX = 1.0;
-          purgeScaleY = 1.0;
-          purgeTranslateX = 0.0;
-          purgeOpacity = 1.0;
-          purgeHeightFactor = 1.0;
-        }
+          // Noise squeeze dynamics (if triggered)
+          final double purgeScaleX;
+          final double purgeScaleY;
+          final double purgeTranslateX;
+          final double purgeOpacity;
+          final double purgeHeightFactor;
 
-        // Press scale (0.98)
-        final pressScale = 1.0 - (pVal * 0.02);
+          if (purgeVal > 0.0) {
+            final t = purgeVal;
+            final squeeze = Curves.easeInCubic.transform(t);
+            purgeScaleX = 1.0 - (squeeze * 0.25);
+            purgeScaleY = 1.0 - (squeeze * 0.35);
+            purgeTranslateX = squeeze * 28.0;
+            purgeOpacity = (1.0 - (t * 1.3)).clamp(0.0, 1.0);
+            purgeHeightFactor = (1.0 - (t * 0.8)).clamp(0.0, 1.0);
+          } else {
+            purgeScaleX = 1.0;
+            purgeScaleY = 1.0;
+            purgeTranslateX = 0.0;
+            purgeOpacity = 1.0;
+            purgeHeightFactor = 1.0;
+          }
 
-        return SizeTransition(
-          sizeFactor: AlwaysStoppedAnimation(purgeHeightFactor),
-          alignment: Alignment.topCenter,
-          child: Transform.translate(
-            offset: Offset(purgeTranslateX, 0),
-            child: Transform.scale(
-              scaleX: purgeScaleX * pressScale,
-              scaleY: purgeScaleY * pressScale,
-              alignment: Alignment.center,
-              child: Opacity(
-                opacity: purgeOpacity,
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 4.0),
-                  width: double.infinity,
-                  child: TrimGlassSurface(
-                    morphProgress: mVal,
-                    // Disciplined borders: no strong color glow around the entire card
-                    accentColor: null,
-                    onTap: hasReason ? () {} : null,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: 13.0,
-                      vertical: widget.isPass ? 11.5 : 10.0,
-                    ),
-                    child: GestureDetector(
-                      onTapDown: _onTapDown,
-                      onTapUp: _onTapUp,
-                      onTapCancel: _onTapCancel,
-                      behavior: HitTestBehavior.opaque,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Top header row: Icon + Feature Title + Badge + Chevron
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              // Feature Icon: Emerald check or subtle muted close icon
-                              _buildStatusIcon(),
-                              const SizedBox(width: 10.0),
+          // Press scale factor (1.0 -> 0.98)
+          final pressScale = 1.0 - (pVal * 0.02);
 
-                              // Feature Title in Manrope (humanist sans-serif)
-                              Expanded(
-                                child: Text(
-                                  widget.text,
-                                  style: AppTypography.featureTitle.copyWith(
-                                    fontWeight: widget.isPass ? FontWeight.w600 : FontWeight.w400,
-                                    color: widget.isPass
-                                        ? const Color(0xFFF4F4F5)
-                                        : const Color(0xFF8E8E93),
-                                    decoration: widget.isPass
-                                        ? TextDecoration.none
-                                        : TextDecoration.lineThrough,
-                                    decorationColor: AppColors.cutRed.withValues(alpha: 0.6),
-                                    decorationThickness: 1.6,
+          // Internal spacing animation:
+          // Unfolds with subtle additional vertical padding as the card expands
+          final currentPadding = EdgeInsets.lerp(
+            const EdgeInsets.symmetric(horizontal: 14.0, vertical: 11.0),
+            const EdgeInsets.symmetric(horizontal: 14.0, vertical: 14.5),
+            mVal.clamp(0.0, 1.0),
+          )!;
+
+          // Subtle material tint influence
+          final surfaceTint = widget.isPass
+              ? const Color(0xFF06281B).withValues(alpha: 0.16 + (0.10 * mVal.clamp(0.0, 1.0)))
+              : const Color(0xFF221417).withValues(alpha: 0.14 + (0.08 * mVal.clamp(0.0, 1.0)));
+
+          return SizeTransition(
+            sizeFactor: AlwaysStoppedAnimation(purgeHeightFactor),
+            alignment: Alignment.topCenter,
+            child: Transform.translate(
+              offset: Offset(purgeTranslateX, 0),
+              child: Transform.scale(
+                scaleX: purgeScaleX * pressScale,
+                scaleY: purgeScaleY * pressScale,
+                alignment: Alignment.center,
+                child: Opacity(
+                  opacity: purgeOpacity,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4.0),
+                    width: double.infinity,
+                    child: TrimGlassSurface(
+                      morphProgress: mVal,
+                      accentColor: accentColor,
+                      surfaceTint: surfaceTint,
+                      padding: currentPadding,
+                      child: GestureDetector(
+                        onTapDown: _onTapDown,
+                        onTapUp: _onTapUp,
+                        onTapCancel: _onTapCancel,
+                        behavior: HitTestBehavior.opaque,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Top header row: Icon + Feature Title + Badge + Chevron
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                // Feature Status Icon
+                                _buildStatusIcon(),
+                                const SizedBox(width: 10.0),
+
+                                // Feature Title in Manrope (humanist sans-serif)
+                                Expanded(
+                                  child: Text(
+                                    widget.text,
+                                    style: AppTypography.featureTitle.copyWith(
+                                      fontWeight: widget.isPass ? FontWeight.w600 : FontWeight.w400,
+                                      color: widget.isPass
+                                          ? const Color(0xFFF4F4F5)
+                                          : const Color(0xFF8E8E93),
+                                      decoration: widget.isPass
+                                          ? TextDecoration.none
+                                          : TextDecoration.lineThrough,
+                                      decorationColor: AppColors.cutRed.withValues(alpha: 0.6),
+                                      decorationThickness: 1.6,
+                                    ),
                                   ),
                                 ),
-                              ),
 
-                              const SizedBox(width: 8.0),
+                                const SizedBox(width: 8.0),
 
-                              // CUT / PASS Badge
-                              TrimStatusBadge(
-                                status: widget.isPass
-                                    ? TrimStatusType.pass
-                                    : TrimStatusType.cut,
-                                onTap: !widget.isPass ? triggerPurge : null,
-                              ),
-
-                              // Chevron arrow that rotates smoothly with spring
-                              if (hasReason) ...[
-                                const SizedBox(width: 6.0),
-                                TrimChevron(
-                                  progress: mVal,
-                                  color: const Color(0xFF71717A),
+                                // CUT / PASS Badge
+                                TrimStatusBadge(
+                                  status: widget.isPass
+                                      ? TrimStatusType.pass
+                                      : TrimStatusType.cut,
+                                  onTap: !widget.isPass ? triggerPurge : null,
                                 ),
-                              ],
-                            ],
-                          ),
 
-                          // Emergent Reason Drawer (emerges organically from the SAME card)
-                          if (hasReason)
-                            TrimExpandableReason(
-                              reason: widget.reason!,
-                              isPass: widget.isPass,
-                              progress: mVal,
+                                // Chevron arrow that rotates physically with spring motion
+                                if (hasReason) ...[
+                                  const SizedBox(width: 6.0),
+                                  TrimChevron(
+                                    progress: mVal,
+                                    color: widget.isPass
+                                        ? Color.lerp(
+                                            const Color(0xFF71717A),
+                                            AppColors.emerald,
+                                            mVal.clamp(0.0, 1.0),
+                                          )
+                                        : Color.lerp(
+                                            const Color(0xFF71717A),
+                                            const Color(0xFFD48B95),
+                                            mVal.clamp(0.0, 1.0),
+                                          ),
+                                  ),
+                                ],
+                              ],
                             ),
-                        ],
+
+                            // Emergent Reason Drawer (unfolds naturally from the SAME card)
+                            if (hasReason)
+                              TrimExpandableReason(
+                                reason: widget.reason!,
+                                isPass: widget.isPass,
+                                progress: mVal,
+                                label: widget.reasonLabel,
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 

@@ -1,0 +1,331 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:trim/screens/brain_dump_screen.dart';
+import 'package:trim/services/trim_voice_service.dart';
+import 'package:trim/widgets/voice_waveform.dart';
+
+/// Test mock implementation for deterministic voice testing
+class MockTrimVoiceService implements TrimVoiceService {
+  final ValueNotifier<TrimVoiceState> _stateNotifier =
+      ValueNotifier<TrimVoiceState>(TrimVoiceState.idle);
+  final ValueNotifier<String> _liveWordsNotifier = ValueNotifier<String>('');
+  final ValueNotifier<double> _soundLevelNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<TrimVoiceError?> _errorNotifier =
+      ValueNotifier<TrimVoiceError?>(null);
+
+  bool shouldFailInitialization = false;
+  TrimVoiceError? errorToEmit;
+  void Function(String text)? onResultHandler;
+  void Function(TrimVoiceError error)? onErrorHandler;
+
+  @override
+  ValueListenable<TrimVoiceState> get stateListenable => _stateNotifier;
+
+  @override
+  ValueListenable<String> get liveWordsListenable => _liveWordsNotifier;
+
+  @override
+  ValueListenable<double> get soundLevelListenable => _soundLevelNotifier;
+
+  @override
+  ValueListenable<TrimVoiceError?> get errorListenable => _errorNotifier;
+
+  @override
+  TrimVoiceState get state => _stateNotifier.value;
+
+  @override
+  String get liveWords => _liveWordsNotifier.value;
+
+  @override
+  double get soundLevel => _soundLevelNotifier.value;
+
+  @override
+  TrimVoiceError? get currentError => _errorNotifier.value;
+
+  @override
+  Future<bool> initialize() async {
+    return !shouldFailInitialization;
+  }
+
+  @override
+  Future<bool> startListening({
+    void Function(String text)? onResult,
+    void Function(TrimVoiceError error)? onError,
+  }) async {
+    onResultHandler = onResult;
+    onErrorHandler = onError;
+
+    if (errorToEmit != null) {
+      _errorNotifier.value = errorToEmit;
+      onError?.call(errorToEmit!);
+      return false;
+    }
+
+    _stateNotifier.value = TrimVoiceState.listening;
+    return true;
+  }
+
+  void simulateSpeech(String words, {double soundLevel = 0.6}) {
+    _soundLevelNotifier.value = soundLevel;
+    _liveWordsNotifier.value = words;
+    onResultHandler?.call(words);
+  }
+
+  void simulateError(TrimVoiceError error) {
+    _errorNotifier.value = error;
+    _stateNotifier.value = TrimVoiceState.idle;
+    _soundLevelNotifier.value = 0.0;
+    onErrorHandler?.call(error);
+  }
+
+  @override
+  Future<void> stopListening() async {
+    _stateNotifier.value = TrimVoiceState.processing;
+    _soundLevelNotifier.value = 0.0;
+    _stateNotifier.value = TrimVoiceState.idle;
+  }
+
+  @override
+  Future<void> cancelListening() async {
+    _stateNotifier.value = TrimVoiceState.idle;
+    _soundLevelNotifier.value = 0.0;
+    _liveWordsNotifier.value = '';
+  }
+
+  @override
+  void clearError() {
+    _errorNotifier.value = null;
+  }
+
+  @override
+  void resetLiveWords() {
+    _liveWordsNotifier.value = '';
+  }
+
+  @override
+  void dispose() {
+    _stateNotifier.dispose();
+    _liveWordsNotifier.dispose();
+    _soundLevelNotifier.dispose();
+    _errorNotifier.dispose();
+  }
+}
+
+void main() {
+  late MockTrimVoiceService mockService;
+
+  setUp(() {
+    mockService = MockTrimVoiceService();
+    TrimVoiceService.setMockInstance(mockService);
+  });
+
+  tearDown(() {
+    TrimVoiceService.setMockInstance(null);
+  });
+
+  group('TRIM — Voice Input & Creative Phone Use Matrix', () {
+    test('MockTrimVoiceService lifecycle transitions cleanly', () async {
+      expect(mockService.state, TrimVoiceState.idle);
+
+      final started = await mockService.startListening();
+      expect(started, isTrue);
+      expect(mockService.state, TrimVoiceState.listening);
+
+      mockService.simulateSpeech('An offline habit app with zero distractions',
+          soundLevel: 0.8);
+      expect(mockService.liveWords,
+          'An offline habit app with zero distractions');
+      expect(mockService.soundLevel, 0.8);
+
+      await mockService.stopListening();
+      expect(mockService.state, TrimVoiceState.idle);
+      expect(mockService.soundLevel, 0.0);
+    });
+
+    test('Cancellation clears live words and restores idle state', () async {
+      await mockService.startListening();
+      mockService.simulateSpeech('Temporary bloat feature');
+      expect(mockService.liveWords, 'Temporary bloat feature');
+
+      await mockService.cancelListening();
+      expect(mockService.state, TrimVoiceState.idle);
+      expect(mockService.liveWords, isEmpty);
+      expect(mockService.soundLevel, 0.0);
+    });
+
+    testWidgets('BrainDumpScreen displays TYPE and SPEAK mode toggle',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('TYPE'), findsOneWidget);
+      expect(find.text('SPEAK'), findsOneWidget);
+      expect(find.text('What are you building?'), findsOneWidget);
+      expect(find.text('TRIM THE FAT'), findsOneWidget);
+    });
+
+    testWidgets(
+        'Switching to SPEAK mode displays waveform, mic button, and SPEAK status',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Tap on SPEAK mode segment
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Should display voice canvas elements
+      expect(find.byType(VoiceWaveform), findsOneWidget);
+      expect(find.byType(VoiceMicrophoneButton), findsOneWidget);
+      expect(find.byType(VoiceStatusIndicator), findsOneWidget);
+      expect(find.text('SPEAK'), findsNWidgets(2)); // Segment + Status
+    });
+
+    testWidgets(
+        'Voice flow: SPEAK -> listening -> live text -> user reviews -> TRIM THE FAT ready without auto-submit',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Switch to SPEAK mode
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Tap mic button to start listening
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(mockService.state, TrimVoiceState.listening);
+      expect(find.text('LISTENING…'), findsOneWidget);
+
+      // Simulate live transcribed words streaming in
+      mockService.simulateSpeech(
+          'An offline habit tracker with harsh truth feedback',
+          soundLevel: 0.7);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Live transcription should appear in review box
+      expect(
+          find.text('An offline habit tracker with harsh truth feedback'),
+          findsOneWidget);
+      expect(find.text('LIVE TRANSCRIPTION'), findsOneWidget);
+
+      // Tap mic button to stop listening
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Verification: Does NOT auto-submit; user remains on screen to review
+      expect(find.text('What are you building?'), findsOneWidget);
+      expect(find.text('REVIEW YOUR IDEA'), findsOneWidget);
+      expect(
+          find.text('An offline habit tracker with harsh truth feedback'),
+          findsOneWidget);
+
+      // TRIM THE FAT CTA is enabled and ready
+      expect(find.text('TRIM THE FAT'), findsOneWidget);
+
+      // User can switch back to TYPE mode to inspect/edit
+      await tester.tap(find.text('TYPE'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(
+          find.text('An offline habit tracker with harsh truth feedback'),
+          findsOneWidget);
+    });
+
+    testWidgets(
+        'Press-and-hold (long press) interaction shows RELEASE TO FINISH',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Long press start
+      final gesture = await tester
+          .startGesture(tester.getCenter(find.byType(VoiceMicrophoneButton)));
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(find.text('RELEASE TO FINISH'), findsOneWidget);
+
+      // Release gesture
+      await gesture.up();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(mockService.state, TrimVoiceState.idle);
+    });
+
+    testWidgets('Cancellation discards spoken text and keeps prior draft',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Pre-populate with typed text
+      final textField = find.byType(TextField);
+      await tester.enterText(textField, 'Initial core idea');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Switch to SPEAK
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Start recording
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      mockService.simulateSpeech('plus unwanted bloat feature');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('CANCEL'), findsOneWidget);
+
+      // Tap CANCEL
+      await tester.tap(find.text('CANCEL'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Unwanted speech was reverted, prior text retained
+      expect(find.textContaining('Initial core idea'), findsOneWidget);
+      expect(find.textContaining('unwanted bloat feature'), findsNothing);
+    });
+
+    testWidgets('Permission denied displays clear banner and falls back to typing',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Simulate permission denied error
+      mockService.simulateError(TrimVoiceError.permissionDenied);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+          find.text('Microphone permission denied. Switched to typing.'),
+          findsOneWidget);
+
+      // Wait for auto-fallback to typing mode
+      await tester.pump(const Duration(milliseconds: 1600));
+
+      // Should be back in TYPE mode with multiline TextField visible
+      expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets('No speech detected displays non-technical notification',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      mockService.simulateError(TrimVoiceError.noSpeech);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+          find.text('No speech detected. Speak or switch to typing.'),
+          findsOneWidget);
+    });
+  });
+}

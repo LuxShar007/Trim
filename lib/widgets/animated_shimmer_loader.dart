@@ -18,12 +18,11 @@ class _AnimatedShimmerLoaderState extends State<AnimatedShimmerLoader>
   int _quoteIndex = 0;
 
   static const List<String> _quotes = [
-    'Sharpening the guillotine...',
-    'Decimating feature creep...',
-    'Stripping out vanity metrics...',
-    'Exposing the illusion of complexity...',
-    'Rejecting unneeded microservices...',
-    'Slicing straight to the MVP core...',
+    'Parsing product context...',
+    'Extracting candidate features...',
+    'Separating core loop from noise...',
+    'Consolidating essential MVP...',
+    'Locking product specification...',
   ];
 
   @override
@@ -175,7 +174,7 @@ class _AnimatedShimmerLoaderState extends State<AnimatedShimmerLoader>
                 _quotes[_quoteIndex],
                 key: ValueKey<int>(_quoteIndex),
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 14.5,
                   fontWeight: FontWeight.w500,
                   color: const Color(0xFFD4D4D8),

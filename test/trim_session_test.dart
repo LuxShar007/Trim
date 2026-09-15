@@ -89,23 +89,21 @@ void main() {
 
       final md = session.toMarkdown();
 
-      expect(md, contains('# StudySnap'));
-      expect(md, contains('## Core Value'));
+      expect(md, contains('# TRIMMED MVP'));
+      expect(md, contains('StudySnap'));
       expect(md, contains('Snap any textbook equation'));
-      expect(md, contains('## MVP'));
-      expect(md, contains('### Must-Haves'));
+      expect(md, contains('## Must-Haves'));
       expect(md, contains('1. **Camera equation OCR**'));
-      expect(md, contains('### Explicitly Cut'));
+      expect(md, contains('## Discarded Bloat'));
       expect(md, contains('- ~~Crypto study rewards~~: _Complete noise_'));
       expect(md, contains('## Build First'));
       expect(md, contains('1. 01 Camera equation OCR'));
       expect(md, contains('## Product Truth'));
       expect(md, contains('Students just want the math steps solved'));
-      expect(md, contains('## MVP Status'));
-      expect(md, contains('Locked'));
-      expect(md, contains('## Scope Reduction'));
-      expect(md, contains('5 → 3'));
-      expect(md, contains('40% removed'));
+      expect(md, contains('## Scope'));
+      expect(md, contains('5 → 3 SURVIVE'));
+      expect(md, contains('40% SCOPE REMOVED'));
+      expect(md, contains('MVP LOCKED'));
     });
   });
 }

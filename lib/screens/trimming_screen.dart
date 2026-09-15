@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../core/animations/spring_physics.dart';
 import '../core/theme/app_colors.dart';
@@ -7,22 +8,24 @@ import '../core/utilities/haptics_util.dart';
 import '../models/trim_result.dart';
 import '../services/groq_service.dart';
 import '../services/trim_engine.dart';
-import '../widgets/api_key_modal.dart';
 import '../widgets/spring_button.dart';
 import 'trim_results_screen.dart';
 
-/// Processing sequence states (Visual Design System V3).
+/// Intentional processing stages for physical idea reduction.
 enum ProcessingStage {
-  understanding, // State 1: "UNDERSTANDING" - fragments appear
-  trimming, // State 2: "TRIMMING" - fragments separate into SURVIVE & CUT
-  locking, // State 3: "LOCKING" - surviving features consolidate
-  verdictReady, // State 4: "{TOTAL} → {SURVIVORS}" using actual returned data
+  understanding, // Stage 1: "UNDERSTANDING" - digesting the raw idea
+  featureExtraction, // Stage 2: "FEATURE EXTRACTION" - candidate features emerge
+  trimming, // Stage 3: "TRIMMING" - features separate into CORE & NOISE
+  consolidating, // Stage 4: "CONSOLIDATING" - noise compresses, core groups
+  locking, // Stage 5: "LOCKING" - MVP is locked
+  verdictReady, // Stage 6: "{TOTAL} → {SURVIVORS} SURVIVE"
 }
 
 enum TrimApiState { idle, loading, success, error }
 
-/// Dedicated processing screen between Brain Dump and Results.
-/// Replaces developer quotes & scissors with a deliberate 4-stage product sequence.
+/// Dedicated processing screen between Brain Dump and Verdict.
+/// Delivers an intentional, premium physical product experience with spring physics,
+/// real-state synchronization, and zero developer telemetry or fake progress bars.
 class TrimmingScreen extends StatefulWidget {
   final String rawIdea;
   final TrimEngine? engine;
@@ -46,17 +49,22 @@ class _TrimmingScreenState extends State<TrimmingScreen>
   bool _isExecuting = false;
   String? _errorMessage;
   TrimErrorType? _errorType;
+  Duration? _rateLimitRetryAfter;
+  DateTime? _lastRetryTime;
   TrimResult? _result;
 
   int _currentRequestId = 0;
   TrimCancellableToken? _activeCancelToken;
 
+  // Timeline timers for intentional sequence pacing
   Timer? _stageTimer1;
   Timer? _stageTimer2;
+  Timer? _stageTimer3;
+  Timer? _stageTimer4;
 
   late final AnimationController _motionController;
 
-  // Sample feature fragments extracted for visual motion
+  // Contextual feature fragments extracted from user's idea
   late final List<String> _coreFragments;
   late final List<String> _noiseFragments;
 
@@ -65,6 +73,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
     super.initState();
     _trimEngine = widget.engine ?? TrimEngine();
 
+    // Spring motion controller for physical feature transitions
     _motionController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 600),
@@ -76,7 +85,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
   }
 
   void _prepareFragments() {
-    // Extract keywords or use clean contextual fragments
+    // Extract keywords from raw idea for contextual realism
     final words = widget.rawIdea
         .split(RegExp(r'[,.\s]+'))
         .where((w) => w.length > 3)
@@ -107,26 +116,63 @@ class _TrimmingScreenState extends State<TrimmingScreen>
   }
 
   void _startStageTimeline() {
-    _stageTimer1?.cancel();
-    _stageTimer2?.cancel();
+    _cancelTimers();
 
-    _stageTimer1 = Timer(const Duration(milliseconds: 1600), () {
+    // Stage 1 -> 2: UNDERSTANDING -> FEATURE EXTRACTION (800ms)
+    _stageTimer1 = Timer(const Duration(milliseconds: 800), () {
       if (mounted && _stage == ProcessingStage.understanding) {
+        setState(() {
+          _stage = ProcessingStage.featureExtraction;
+        });
+        _motionController.forward(from: 0.0);
+        HapticsUtil.lightClick();
+      }
+    });
+
+    // Stage 2 -> 3: FEATURE EXTRACTION -> TRIMMING (1700ms)
+    _stageTimer2 = Timer(const Duration(milliseconds: 1700), () {
+      if (mounted && _stage == ProcessingStage.featureExtraction) {
         setState(() {
           _stage = ProcessingStage.trimming;
         });
         _motionController.forward(from: 0.0);
+        HapticsUtil.lightClick();
       }
     });
 
-    _stageTimer2 = Timer(const Duration(milliseconds: 3200), () {
+    // Stage 3 -> 4: TRIMMING -> CONSOLIDATING (2600ms)
+    _stageTimer3 = Timer(const Duration(milliseconds: 2600), () {
       if (mounted && _stage == ProcessingStage.trimming) {
+        setState(() {
+          _stage = ProcessingStage.consolidating;
+        });
+        _motionController.forward(from: 0.0);
+        HapticsUtil.lightClick();
+      }
+    });
+
+    // Stage 4 -> 5: CONSOLIDATING -> LOCKING (3500ms)
+    _stageTimer4 = Timer(const Duration(milliseconds: 3500), () {
+      if (mounted && _stage == ProcessingStage.consolidating) {
         setState(() {
           _stage = ProcessingStage.locking;
         });
         _motionController.forward(from: 0.0);
+        HapticsUtil.mediumImpact();
+
+        // If the real AI result has already arrived, reveal verdict immediately
+        if (_result != null) {
+          _revealVerdictAndNavigate(_result!);
+        }
       }
     });
+  }
+
+  void _cancelTimers() {
+    _stageTimer1?.cancel();
+    _stageTimer2?.cancel();
+    _stageTimer3?.cancel();
+    _stageTimer4?.cancel();
   }
 
   void _cancelActiveRequest() {
@@ -138,16 +184,28 @@ class _TrimmingScreenState extends State<TrimmingScreen>
   @override
   void dispose() {
     _cancelActiveRequest();
-    _stageTimer1?.cancel();
-    _stageTimer2?.cancel();
+    _cancelTimers();
     _motionController.dispose();
     super.dispose();
   }
 
   Future<void> _executeTriage({bool isRetry = false}) async {
-    if (_isExecuting && !isRetry) return;
+    if (_isExecuting) {
+      if (kDebugMode) {
+        debugPrint('[TRIM DIAGNOSTIC] Blocked duplicate execution: request already in flight (isRetry: $isRetry)');
+      }
+      return;
+    }
 
     if (isRetry) {
+      final now = DateTime.now();
+      if (_lastRetryTime != null &&
+          now.difference(_lastRetryTime!) < const Duration(milliseconds: 750)) {
+        return;
+      }
+      _lastRetryTime = now;
+      _rateLimitRetryAfter = null;
+
       _cancelActiveRequest();
       _errorMessage = null;
       _errorType = null;
@@ -175,12 +233,6 @@ class _TrimmingScreenState extends State<TrimmingScreen>
         return;
       }
 
-      if (savedKey == null || savedKey.trim().isEmpty) {
-        throw const GroqUnauthorizedException(
-          'Missing Groq API Key. Please tap "Update Groq API Key" below.',
-        );
-      }
-
       final TrimResult result = await _trimEngine.trimIdea(
         rawIdea: widget.rawIdea,
         apiKey: savedKey,
@@ -193,47 +245,26 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       }
 
       _result = result;
-      setState(() {
-        _stage = ProcessingStage.verdictReady;
-        _apiState = TrimApiState.success;
-        _isExecuting = false;
-      });
+      _isExecuting = false;
 
-      HapticsUtil.mediumImpact();
-
-      // Brief physical settle before navigating into Results
-      await Future.delayed(const Duration(milliseconds: 650));
-      if (!mounted || requestId != _currentRequestId || cancelToken.isCancelled) {
-        return;
+      // Real-state synchronization: if animation already reached LOCKING, reveal immediately,
+      // otherwise briskly advance through remaining stages to avoid artificial lag.
+      if (_stage == ProcessingStage.locking) {
+        _revealVerdictAndNavigate(result);
+      } else {
+        _fastForwardToLockingAndVerdict(result);
       }
-
-      Navigator.of(context).pushReplacement(
-        PageRouteBuilder(
-          pageBuilder: (context, animation, secondaryAnimation) =>
-              TrimResultsScreen(result: result),
-          transitionDuration: const Duration(milliseconds: 400),
-          transitionsBuilder: (context, animation, secondaryAnimation, child) {
-            final springAnim = CurvedAnimation(
-              parent: animation,
-              curve: SpringPhysics.snapCurve,
-            );
-            return FadeTransition(
-              opacity: animation,
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.95, end: 1.0).animate(springAnim),
-                child: child,
-              ),
-            );
-          },
-        ),
-      );
     } catch (e) {
       if (!mounted || requestId != _currentRequestId || cancelToken.isCancelled) {
         return;
       }
 
       final TrimErrorType errorType;
-      if (e is GroqException) {
+      Duration? retryAfter;
+      if (e is GroqRateLimitException) {
+        errorType = TrimErrorType.httpError;
+        retryAfter = e.retryAfter;
+      } else if (e is GroqException) {
         errorType = e.errorType;
       } else if (e is TimeoutException) {
         errorType = TrimErrorType.requestTimeout;
@@ -245,9 +276,84 @@ class _TrimmingScreenState extends State<TrimmingScreen>
         _apiState = TrimApiState.error;
         _errorMessage = e.toString();
         _errorType = errorType;
+        _rateLimitRetryAfter = retryAfter;
         _isExecuting = false;
       });
     }
+  }
+
+  void _fastForwardToLockingAndVerdict(TrimResult result) async {
+    _cancelTimers();
+    if (!mounted || _activeCancelToken?.isCancelled == true) return;
+
+    if (_stage == ProcessingStage.understanding) {
+      setState(() => _stage = ProcessingStage.featureExtraction);
+      _motionController.forward(from: 0.0);
+      await Future.delayed(const Duration(milliseconds: 120));
+      if (!mounted || _activeCancelToken?.isCancelled == true) return;
+    }
+
+    if (_stage == ProcessingStage.featureExtraction) {
+      setState(() => _stage = ProcessingStage.trimming);
+      _motionController.forward(from: 0.0);
+      await Future.delayed(const Duration(milliseconds: 120));
+      if (!mounted || _activeCancelToken?.isCancelled == true) return;
+    }
+
+    if (_stage == ProcessingStage.trimming) {
+      setState(() => _stage = ProcessingStage.consolidating);
+      _motionController.forward(from: 0.0);
+      await Future.delayed(const Duration(milliseconds: 120));
+      if (!mounted || _activeCancelToken?.isCancelled == true) return;
+    }
+
+    if (_stage == ProcessingStage.consolidating) {
+      setState(() => _stage = ProcessingStage.locking);
+      _motionController.forward(from: 0.0);
+      HapticsUtil.mediumImpact();
+      await Future.delayed(const Duration(milliseconds: 120));
+      if (!mounted || _activeCancelToken?.isCancelled == true) return;
+    }
+
+    _revealVerdictAndNavigate(result);
+  }
+
+  void _revealVerdictAndNavigate(TrimResult result) async {
+    if (!mounted) return;
+
+    setState(() {
+      _stage = ProcessingStage.verdictReady;
+      _apiState = TrimApiState.success;
+    });
+
+    HapticsUtil.mediumImpact();
+
+    // Intentional physical settle before navigating into Results
+    await Future.delayed(const Duration(milliseconds: 650));
+    if (!mounted || _activeCancelToken?.isCancelled == true) {
+      return;
+    }
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            TrimResultsScreen(result: result),
+        transitionDuration: const Duration(milliseconds: 450),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final springAnim = CurvedAnimation(
+            parent: animation,
+            curve: SpringPhysics.snapCurve,
+          );
+          return FadeTransition(
+            opacity: animation,
+            child: ScaleTransition(
+              scale: Tween<double>(begin: 0.96, end: 1.0).animate(springAnim),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   @override
@@ -279,14 +385,21 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       case ProcessingStage.understanding:
         stageLabel = 'UNDERSTANDING';
         break;
+      case ProcessingStage.featureExtraction:
+        stageLabel = 'FEATURE EXTRACTION';
+        break;
       case ProcessingStage.trimming:
         stageLabel = 'TRIMMING';
+        break;
+      case ProcessingStage.consolidating:
+        stageLabel = 'CONSOLIDATING';
         break;
       case ProcessingStage.locking:
         stageLabel = 'LOCKING';
         break;
       case ProcessingStage.verdictReady:
-        final total = (_result?.mustHaves.length ?? 0) + (_result?.discardedBloat.length ?? 0);
+        final total = (_result?.mustHaves.length ?? 0) +
+            (_result?.discardedBloat.length ?? 0);
         final survivors = _result?.mustHaves.length ?? 0;
         stageLabel = '$total → $survivors SURVIVE';
         break;
@@ -296,40 +409,59 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // Top product status label: TRIM · ANALYZING
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 6,
-              height: 6,
-              decoration: const BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.orange,
-              ),
+        // Top product status label: TRIM · ANALYZING (with glowing emerald indicator)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 6.0),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0D0D12),
+            borderRadius: BorderRadius.circular(100.0),
+            border: Border.all(
+              color: const Color(0xFF1E1E24),
+              width: 0.9,
             ),
-            const SizedBox(width: 8),
-            Text(
-              'TRIM · ANALYZING',
-              style: AppTypography.monoLabel.copyWith(
-                fontSize: 11.0,
-                letterSpacing: 1.0,
-                color: const Color(0xFFA1A1AA),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 6,
+                height: 6,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.emerald,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.emerald.withValues(alpha: 0.5),
+                      blurRadius: 6.0,
+                      spreadRadius: 1.0,
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ],
+              const SizedBox(width: 8),
+              Text(
+                'TRIM · ANALYZING',
+                style: AppTypography.monoLabel.copyWith(
+                  fontSize: 10.5,
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFA1A1AA),
+                ),
+              ),
+            ],
+          ),
         ),
-        const SizedBox(height: 36),
+        const SizedBox(height: 32),
 
-        // Stage Title (Human, editorial, non-cyberpunk)
+        // Animated Stage Title (Editorial, clean, spring transition)
         AnimatedSwitcher(
-          duration: const Duration(milliseconds: 300),
+          duration: const Duration(milliseconds: 320),
           transitionBuilder: (child, animation) {
             return FadeTransition(
               opacity: animation,
               child: SlideTransition(
                 position: Tween<Offset>(
-                  begin: const Offset(0, 0.15),
+                  begin: const Offset(0, 0.18),
                   end: Offset.zero,
                 ).animate(CurvedAnimation(
                   parent: animation,
@@ -343,29 +475,53 @@ class _TrimmingScreenState extends State<TrimmingScreen>
             stageLabel,
             key: ValueKey<String>(stageLabel),
             style: AppTypography.displayLarge.copyWith(
-              fontSize: 22.0,
+              fontSize: _stage == ProcessingStage.verdictReady ? 24.0 : 21.0,
               fontWeight: FontWeight.w700,
-              letterSpacing: -0.3,
-              color: AppColors.textPrimary,
+              letterSpacing: -0.4,
+              color: _stage == ProcessingStage.verdictReady
+                  ? AppColors.emerald
+                  : AppColors.textPrimary,
             ),
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 28),
 
-        // Intelligent Feature Fragment Surface
-        Container(
+        // Intelligent Physical Reduction Surface
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 350),
+          curve: SpringPhysics.snapCurve,
           width: double.infinity,
-          padding: const EdgeInsets.all(18.0),
+          padding: const EdgeInsets.all(20.0),
           decoration: BoxDecoration(
             color: const Color(0xFF09090D),
-            borderRadius: BorderRadius.circular(14.0),
+            borderRadius: BorderRadius.circular(
+              _stage == ProcessingStage.locking || _stage == ProcessingStage.verdictReady
+                  ? 20.0
+                  : 16.0,
+            ),
             border: Border.all(
-              color: const Color(0xFF1E1E24),
+              color: _stage == ProcessingStage.locking || _stage == ProcessingStage.verdictReady
+                  ? AppColors.emerald.withValues(alpha: 0.45)
+                  : const Color(0xFF1E1E24),
               width: 1.0,
             ),
+            boxShadow: [
+              if (_stage == ProcessingStage.locking || _stage == ProcessingStage.verdictReady)
+                BoxShadow(
+                  color: AppColors.emerald.withValues(alpha: 0.08),
+                  blurRadius: 24.0,
+                  spreadRadius: 1.0,
+                ),
+            ],
           ),
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 350),
+            duration: const Duration(milliseconds: 320),
+            transitionBuilder: (child, animation) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
             child: _buildStageVisual(),
           ),
         ),
@@ -381,20 +537,87 @@ class _TrimmingScreenState extends State<TrimmingScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              'FEATURE EXTRACTION',
-              style: AppTypography.monoLabel.copyWith(
-                fontSize: 9.5,
-                color: const Color(0xFF71717A),
+            Row(
+              children: [
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF71717A),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  'PARSING PRODUCT CONTEXT',
+                  style: AppTypography.monoLabel.copyWith(
+                    fontSize: 9.5,
+                    color: const Color(0xFF71717A),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12.0),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F0F14),
+                borderRadius: BorderRadius.circular(10.0),
+                border: Border.all(
+                  color: const Color(0xFF1B1B22),
+                  width: 0.8,
+                ),
+              ),
+              child: Text(
+                widget.rawIdea.length > 120
+                    ? '${widget.rawIdea.substring(0, 120)}...'
+                    : widget.rawIdea,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.bodySmall.copyWith(
+                  fontSize: 12.0,
+                  height: 1.45,
+                  color: const Color(0xFFA1A1AA),
+                ),
               ),
             ),
-            const SizedBox(height: 12),
+          ],
+        );
+
+      case ProcessingStage.featureExtraction:
+        return Column(
+          key: const ValueKey('stage_feature_extraction'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.orange,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  'CANDIDATE EXTRACTION',
+                  style: AppTypography.monoLabel.copyWith(
+                    fontSize: 9.5,
+                    color: AppColors.orange,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
             Wrap(
               spacing: 8.0,
               runSpacing: 8.0,
               children: [
-                ..._coreFragments.map((f) => _buildFragmentChip(f, false)),
-                ..._noiseFragments.map((f) => _buildFragmentChip(f, false)),
+                ..._coreFragments.map((f) => _buildAnimatedChip(f, isEmerging: true)),
+                ..._noiseFragments.map((f) => _buildAnimatedChip(f, isEmerging: true)),
               ],
             ),
           ],
@@ -406,69 +629,103 @@ class _TrimmingScreenState extends State<TrimmingScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // SURVIVE row
+            // Core survivor candidate row
             Row(
               children: [
-                Container(width: 5, height: 5, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.emerald)),
-                const SizedBox(width: 6),
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.emerald,
+                  ),
+                ),
+                const SizedBox(width: 7),
                 Text(
-                  'SURVIVE',
-                  style: AppTypography.monoLabel.copyWith(fontSize: 9.5, color: AppColors.emerald),
+                  'CORE CANDIDATES',
+                  style: AppTypography.monoLabel.copyWith(
+                    fontSize: 9.5,
+                    color: AppColors.emerald,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Wrap(
-              spacing: 6.0,
-              runSpacing: 6.0,
-              children: _coreFragments.map((f) => _buildFragmentChip(f, true, isCore: true)).toList(),
+              spacing: 7.0,
+              runSpacing: 7.0,
+              children: _coreFragments
+                  .map((f) => _buildFragmentChip(f, isCore: true, isSeparated: true))
+                  .toList(),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
-            // CUT row
+            // Noise candidate row
             Row(
               children: [
-                Container(width: 5, height: 5, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.cutRed)),
-                const SizedBox(width: 6),
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.cutRed,
+                  ),
+                ),
+                const SizedBox(width: 7),
                 Text(
-                  'CUT',
-                  style: AppTypography.monoLabel.copyWith(fontSize: 9.5, color: const Color(0xFF71717A)),
+                  'NOISE CANDIDATES',
+                  style: AppTypography.monoLabel.copyWith(
+                    fontSize: 9.5,
+                    color: const Color(0xFF71717A),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             Wrap(
-              spacing: 6.0,
-              runSpacing: 6.0,
-              children: _noiseFragments.map((f) => _buildFragmentChip(f, true, isCore: false)).toList(),
+              spacing: 7.0,
+              runSpacing: 7.0,
+              children: _noiseFragments
+                  .map((f) => _buildFragmentChip(f, isCore: false, isSeparated: true))
+                  .toList(),
             ),
           ],
         );
 
-      case ProcessingStage.locking:
-      case ProcessingStage.verdictReady:
+      case ProcessingStage.consolidating:
         return Column(
-          key: const ValueKey('stage_locking'),
+          key: const ValueKey('stage_consolidating'),
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Core consolidating path
             Row(
               children: [
-                Container(width: 5, height: 5, decoration: const BoxDecoration(shape: BoxShape.circle, color: AppColors.emerald)),
-                const SizedBox(width: 6),
+                Container(
+                  width: 5,
+                  height: 5,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.emerald,
+                  ),
+                ),
+                const SizedBox(width: 7),
                 Text(
-                  'CORE MVP CONSOLIDATION',
-                  style: AppTypography.monoLabel.copyWith(fontSize: 9.5, color: AppColors.emerald),
+                  'CONSOLIDATING CORE VALUE',
+                  style: AppTypography.monoLabel.copyWith(
+                    fontSize: 9.5,
+                    color: AppColors.emerald,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 10),
             ..._coreFragments.map((f) {
               return Container(
-                margin: const EdgeInsets.symmetric(vertical: 3.5),
+                margin: const EdgeInsets.symmetric(vertical: 3.0),
                 padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F1713),
+                  color: const Color(0xFF0D1712),
                   borderRadius: BorderRadius.circular(8.0),
                   border: Border.all(
                     color: AppColors.emerald.withValues(alpha: 0.35),
@@ -482,9 +739,126 @@ class _TrimmingScreenState extends State<TrimmingScreen>
                     Text(
                       f,
                       style: AppTypography.bodyMedium.copyWith(
-                        fontSize: 12.5,
+                        fontSize: 12.0,
                         fontWeight: FontWeight.w500,
                         color: const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+            const SizedBox(height: 12),
+
+            // Noise compressed row (subtly fading away)
+            Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF52525B),
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Text(
+                  'DISCARDED NOISE (COMPRESSING)',
+                  style: AppTypography.monoLabel.copyWith(
+                    fontSize: 9.0,
+                    color: const Color(0xFF52525B),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Opacity(
+              opacity: 0.35,
+              child: Wrap(
+                spacing: 6.0,
+                runSpacing: 6.0,
+                children: _noiseFragments
+                    .map((f) => _buildFragmentChip(f, isCore: false, isCompressed: true))
+                    .toList(),
+              ),
+            ),
+          ],
+        );
+
+      case ProcessingStage.locking:
+      case ProcessingStage.verdictReady:
+        return Column(
+          key: const ValueKey('stage_locking'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.lock_outline_rounded,
+                      size: 13,
+                      color: AppColors.emerald,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      _stage == ProcessingStage.verdictReady
+                          ? 'MVP LOCKED'
+                          : 'LOCKING SPECIFICATION...',
+                      style: AppTypography.monoLabel.copyWith(
+                        fontSize: 9.5,
+                        letterSpacing: 0.8,
+                        color: AppColors.emerald,
+                      ),
+                    ),
+                  ],
+                ),
+                if (_stage == ProcessingStage.verdictReady)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 3.0),
+                    decoration: BoxDecoration(
+                      color: AppColors.emerald.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6.0),
+                      border: Border.all(
+                        color: AppColors.emerald.withValues(alpha: 0.4),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      'READY',
+                      style: AppTypography.monoChip.copyWith(
+                        fontSize: 9.0,
+                        color: AppColors.emerald,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._coreFragments.map((f) {
+              return Container(
+                margin: const EdgeInsets.symmetric(vertical: 3.0),
+                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0F1B14),
+                  borderRadius: BorderRadius.circular(8.0),
+                  border: Border.all(
+                    color: AppColors.emerald.withValues(alpha: 0.4),
+                    width: 0.9,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_rounded, size: 12, color: AppColors.emerald),
+                    const SizedBox(width: 8),
+                    Text(
+                      f,
+                      style: AppTypography.bodyMedium.copyWith(
+                        fontSize: 12.0,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFFF1F5F9),
                       ),
                     ),
                   ],
@@ -496,27 +870,61 @@ class _TrimmingScreenState extends State<TrimmingScreen>
     }
   }
 
-  Widget _buildFragmentChip(String text, bool active, {bool isCore = false}) {
+  Widget _buildAnimatedChip(String text, {bool isEmerging = false}) {
+    return ScaleTransition(
+      scale: Tween<double>(begin: 0.92, end: 1.0).animate(CurvedAnimation(
+        parent: _motionController,
+        curve: Curves.easeOutBack,
+      )),
+      child: FadeTransition(
+        opacity: Tween<double>(begin: 0.4, end: 1.0).animate(_motionController),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9.0, vertical: 5.0),
+          decoration: BoxDecoration(
+            color: const Color(0xFF131318),
+            borderRadius: BorderRadius.circular(7.0),
+            border: Border.all(
+              color: const Color(0xFF24242C),
+              width: 0.8,
+            ),
+          ),
+          child: Text(
+            text,
+            style: AppTypography.bodySmall.copyWith(
+              fontSize: 11.5,
+              color: const Color(0xFFA1A1AA),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFragmentChip(
+    String text, {
+    required bool isCore,
+    bool isSeparated = false,
+    bool isCompressed = false,
+  }) {
     final Color bgColor;
     final Color borderColor;
     final Color textColor;
 
-    if (!active) {
-      bgColor = const Color(0xFF131318);
-      borderColor = const Color(0xFF222228);
-      textColor = const Color(0xFFA1A1AA);
-    } else if (isCore) {
+    if (isCore) {
       bgColor = AppColors.emerald.withValues(alpha: 0.12);
       borderColor = AppColors.emerald.withValues(alpha: 0.35);
       textColor = AppColors.emerald;
     } else {
-      bgColor = const Color(0xFF140D0D);
-      borderColor = const Color(0xFF2E1C1C);
+      bgColor = isCompressed ? const Color(0xFF100A0A) : const Color(0xFF140D0D);
+      borderColor = const Color(0xFF281818);
       textColor = const Color(0xFF71717A);
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.5),
+      padding: EdgeInsets.symmetric(
+        horizontal: isCompressed ? 7.0 : 8.5,
+        vertical: isCompressed ? 3.5 : 4.5,
+      ),
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(6.0),
@@ -525,10 +933,10 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       child: Text(
         text,
         style: AppTypography.bodySmall.copyWith(
-          fontSize: 11.5,
+          fontSize: isCompressed ? 10.5 : 11.5,
           color: textColor,
-          decoration: (active && !isCore) ? TextDecoration.lineThrough : null,
-          decorationColor: AppColors.cutRed.withValues(alpha: 0.5),
+          decoration: (!isCore && isSeparated) ? TextDecoration.lineThrough : null,
+          decorationColor: AppColors.cutRed.withValues(alpha: 0.6),
         ),
       ),
     );
@@ -536,56 +944,67 @@ class _TrimmingScreenState extends State<TrimmingScreen>
 
   Widget _buildErrorState() {
     final String errorTitle;
+    final String errorDescription;
+
     switch (_errorType) {
       case TrimErrorType.requestTimeout:
-        errorTitle = 'REQUEST TIMED OUT';
+        errorTitle = 'ANALYSIS TIMED OUT';
+        errorDescription =
+            'The reduction took longer than expected to process. Please tap below to retry.';
         break;
       case TrimErrorType.requestCancelled:
         errorTitle = 'TRIMMING CANCELLED';
+        errorDescription =
+            'The active reduction was cancelled before completion.';
         break;
       case TrimErrorType.networkError:
-        errorTitle = 'NETWORK ERROR';
+        errorTitle = 'CONNECTION INTERRUPTED';
+        errorDescription =
+            'Unable to communicate with the analysis service. Please check your internet connection.';
         break;
       case TrimErrorType.parseError:
-        errorTitle = 'RESPONSE PARSE ERROR';
+        errorTitle = 'ANALYSIS INTERRUPTED';
+        errorDescription =
+            'The product specification could not be finalized. Please tap retry to run a fresh pass.';
         break;
       case TrimErrorType.httpError:
         if (_errorMessage != null &&
-            (_errorMessage!.contains('401') ||
-                _errorMessage!.contains('Unauthorized') ||
-                _errorMessage!.contains('API Key'))) {
-          errorTitle = 'UNAUTHORIZED API KEY';
-        } else if (_errorMessage != null && _errorMessage!.contains('429')) {
-          errorTitle = 'RATE LIMIT EXCEEDED';
-        } else if (_errorMessage != null && _errorMessage!.contains('Server Error')) {
-          errorTitle = 'GROQ SERVER ERROR';
+            (_errorMessage!.contains('429') ||
+                _errorMessage!.toLowerCase().contains('rate limit') ||
+                _errorMessage!.toLowerCase().contains('too many trims'))) {
+          errorTitle = 'TRIM PAUSED';
+          errorDescription = _rateLimitRetryAfter != null && _rateLimitRetryAfter!.inSeconds > 0
+              ? 'Too many trims are happening right now. Please wait ${_rateLimitRetryAfter!.inSeconds}s before retrying.'
+              : 'Too many trims are happening right now. Give it a moment and try again.';
         } else {
-          errorTitle = 'GROQ API ERROR';
+          errorTitle = 'SERVICE TEMPORARILY BUSY';
+          errorDescription =
+              'Trim AI engine is temporarily unavailable. Tap below to retry.';
         }
         break;
       default:
-        errorTitle = 'TRIMMING FAILED';
+        errorTitle = 'ANALYSIS INTERRUPTED';
+        errorDescription =
+            'An unexpected issue occurred during reduction. Tap below to retry.';
         break;
     }
-
-    final isKeyRelated = _errorMessage != null &&
-        (_errorMessage!.contains('API Key') ||
-            _errorMessage!.contains('401') ||
-            _errorMessage!.contains('Unauthorized'));
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 50,
-          height: 50,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: AppColors.cutRedSubtle,
-            border: Border.all(color: AppColors.cutRed.withValues(alpha: 0.6), width: 1.0),
+            border: Border.all(
+              color: AppColors.cutRed.withValues(alpha: 0.5),
+              width: 1.0,
+            ),
           ),
           child: const Icon(
-            Icons.warning_amber_rounded,
+            Icons.info_outline_rounded,
             color: AppColors.cutRed,
             size: 24,
           ),
@@ -593,16 +1012,20 @@ class _TrimmingScreenState extends State<TrimmingScreen>
         const SizedBox(height: 18),
         Text(
           errorTitle,
+          textAlign: TextAlign.center,
           style: AppTypography.monoHeader.copyWith(
             fontSize: 14.0,
+            letterSpacing: 0.5,
             color: AppColors.cutRed,
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          _errorMessage ?? 'An unexpected error occurred.',
+          errorDescription,
           textAlign: TextAlign.center,
           style: AppTypography.bodyMedium.copyWith(
+            fontSize: 13.0,
+            height: 1.4,
             color: AppColors.textSecondary,
           ),
         ),
@@ -610,26 +1033,12 @@ class _TrimmingScreenState extends State<TrimmingScreen>
         SizedBox(
           width: double.infinity,
           child: SpringButton(
-            label: 'Retry Trimming',
+            label: 'RETRY TRIMMING',
             onTap: !_isExecuting ? () => _executeTriage(isRetry: true) : null,
             isLoading: _isExecuting,
             isEnabled: !_isExecuting,
           ),
         ),
-        if (isKeyRelated) ...[
-          const SizedBox(height: 12),
-          TextButton.icon(
-            onPressed: () => ApiKeyModal.show(context),
-            icon: const Icon(Icons.key_rounded, size: 14, color: AppColors.orange),
-            label: Text(
-              'Update Groq API Key',
-              style: AppTypography.monoChip.copyWith(
-                color: AppColors.orange,
-                fontSize: 11.5,
-              ),
-            ),
-          ),
-        ],
         const SizedBox(height: 10),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),

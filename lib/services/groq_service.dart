@@ -42,7 +42,7 @@ class GroqUnauthorizedException extends GroqException {
   const GroqUnauthorizedException([String? message])
       : super(
           message ??
-              'Invalid Groq API Key (401 Unauthorized). Please check your key at console.groq.com.',
+              'Trim service is temporarily unavailable. Please try again.',
           statusCode: 401,
           errorType: TrimErrorType.httpError,
         );
@@ -52,7 +52,7 @@ class GroqUnauthorizedException extends GroqException {
 class GroqForbiddenException extends GroqException {
   const GroqForbiddenException([String? message])
       : super(
-          message ?? 'Access forbidden (403 Forbidden). Your account lacks permission for this model.',
+          message ?? 'Trim service is temporarily unavailable. Please try again.',
           statusCode: 403,
           errorType: TrimErrorType.httpError,
         );
@@ -62,7 +62,7 @@ class GroqForbiddenException extends GroqException {
 class GroqNotFoundException extends GroqException {
   const GroqNotFoundException([String? message])
       : super(
-          message ?? 'Resource or model not found (404 Not Found).',
+          message ?? 'Resource not found.',
           statusCode: 404,
           errorType: TrimErrorType.httpError,
         );
@@ -70,10 +70,14 @@ class GroqNotFoundException extends GroqException {
 
 /// HTTP 429 - Rate Limit Exceeded
 class GroqRateLimitException extends GroqException {
-  const GroqRateLimitException([String? message])
-      : super(
+  final Duration? retryAfter;
+
+  const GroqRateLimitException([
+    String? message,
+    this.retryAfter,
+  ]) : super(
           message ??
-              'Groq API rate limit exceeded (429). Please wait a few moments before trimming again.',
+              'Too many trims are happening right now. Give it a moment and try again.',
           statusCode: 429,
           errorType: TrimErrorType.httpError,
         );
@@ -81,8 +85,12 @@ class GroqRateLimitException extends GroqException {
 
 /// HTTP 500+ - Server Error
 class GroqServerException extends GroqException {
-  const GroqServerException(super.message, [int? statusCode = 500])
-      : super(statusCode: statusCode, errorType: TrimErrorType.httpError);
+  const GroqServerException([String? message, int? statusCode = 500])
+      : super(
+          message ?? 'Trim service is temporarily paused. Please try again in a moment.',
+          statusCode: statusCode,
+          errorType: TrimErrorType.httpError,
+        );
 }
 
 /// Network connectivity failure (SocketException / DNS failure)
@@ -121,381 +129,94 @@ class GroqParseException extends GroqException {
 /// Backward compatibility alias
 typedef GroqApiException = GroqException;
 
-/// Cooperative cancellation token for in-flight requests
+/// Represents the distinct lifecycle phases of a Trim request.
+enum TrimRequestPhase {
+  notStarted,
+  localPreparing,     // Phase A: Local Dart operation before HTTP request begins
+  networkTransmitted, // Phase B: HTTP request transmitted over the network
+  completed,
+  cancelled,
+}
+
+/// Cooperative cancellation token for in-flight requests with phase tracking
 class TrimCancellableToken {
   bool _isCancelled = false;
+  TrimRequestPhase _phase = TrimRequestPhase.notStarted;
   http.Client? _activeClient;
+  String? _requestId;
 
   bool get isCancelled => _isCancelled;
+  TrimRequestPhase get phase => _phase;
+  String? get requestId => _requestId;
 
   void attachClient(http.Client client) {
     _activeClient = client;
   }
 
+  void setPhase(TrimRequestPhase phase, {String? requestId}) {
+    _phase = phase;
+    if (requestId != null) _requestId = requestId;
+  }
+
   void cancel() {
     _isCancelled = true;
+    final priorPhase = _phase;
+    _phase = TrimRequestPhase.cancelled;
     try {
       _activeClient?.close();
     } catch (_) {}
+    if (kDebugMode) {
+      final phaseDescription = priorPhase == TrimRequestPhase.localPreparing
+          ? 'Phase A (Local Dart operation before HTTP transmission)'
+          : priorPhase == TrimRequestPhase.networkTransmitted
+              ? 'Phase B (Request was already transmitted over network; client socket closed)'
+              : priorPhase.toString();
+      debugPrint(
+        '[TRIM DIAGNOSTIC] [Request Cancellation] ID: $_requestId '
+        'Timestamp: ${DateTime.now().toIso8601String()} Phase: $phaseDescription',
+      );
+    }
   }
 }
 
-/// Standalone, client-side HTTP service communicating directly with Groq API.
+/// Standalone HTTP service communicating with Trim Vercel backend (/api/trim).
 class GroqService {
-  static const String _groqApiEndpoint = 'https://api.groq.com/openai/v1/chat/completions';
-  static const String _defaultModel = 'openai/gpt-oss-120b';
+  /// Default backend URL for native/mobile platforms (Android/iOS).
+  /// Can be overridden at build time via --dart-define=TRIM_BACKEND_URL=...
+  static const String _defaultBackendUrl = String.fromEnvironment(
+    'TRIM_BACKEND_URL',
+    defaultValue: 'https://web-rust-chi-46.vercel.app/api/trim',
+  );
+
   static const String _apiKeyPrefKey = 'groq_api_key';
   static const Duration _timeoutDuration = Duration(seconds: 60);
 
-  static const String _systemPrompt = '''
-You are TRIM, a ruthless, highly experienced AI Product Manager specializing in Minimum Viable Products, product strategy, scope reduction, and startup validation.
-
-Your job is NOT to summarize the user's idea.
-
-Your job is to determine:
-"What is the smallest product that can deliver the user's core promised outcome?"
-
-You must aggressively eliminate scope while preserving the minimum end-to-end experience required for the product to be useful.
-
-==================================================
-CORE PHILOSOPHY
-==================================================
-
-TRIM follows this rule:
-BUILD THE SMALLEST COMPLETE LOOP.
-
-A feature belongs in the MVP only when removing it would break the fundamental user outcome.
-Everything else is Noise.
-
-Do NOT reward complexity.
-Do NOT reward feature quantity.
-Do NOT assume that more features make a product more valuable.
-A smaller, complete product is better than a larger, incomplete product.
-
-==================================================
-1. DO NOT INVENT FEATURE QUALIFIERS OR PRODUCT PROMISES
-==================================================
-
-The core_value and all feature names must be derived directly from the user's stated intent.
-
-Never add unsupported claims or qualifiers such as:
-- real-time
-- fastest
-- instant
-- automatic
-- guaranteed
-- highly accurate
-- personalized
-- cheapest
-- best
-- revolutionary
-- market-leading
-
-unless the user's original idea explicitly contains that capability or wording.
-
-Example:
-User says: "turn-by-turn navigation"
-Allowed: "Turn-by-turn navigation"
-Not allowed: "Real-time turn-by-turn navigation"
-(because "real-time" was not explicitly described by the user).
-
-Example:
-User says: "turn-by-turn navigation"
-Good core_value: "Help cyclists reach their destination with turn-by-turn navigation."
-Bad core_value: "Help cyclists find the fastest route with real-time navigation."
-(because "fastest" and "real-time" were not promised by the user).
-
-==================================================
-2. EVERY IMPORTANT INPUT FEATURE MUST BE ACCOUNTED FOR
-==================================================
-
-TRIM must not silently drop significant features from the user's idea.
-
-Every meaningful feature/capability in the user's input must be classified as either:
-MUST-HAVE
-or
-DISCARDED_BLOAT
-
-Do not omit features merely to keep the response short.
-There is NO fixed number of discarded features.
-Do not cap discarded_bloat at 4, 5, 6, or any arbitrary number.
-
-If the user provides 12 meaningful features and only 2 survive:
-must_haves = 2
-discarded_bloat = approximately 10
-
-The exact count may vary only when two input features are actually describing the same capability.
-
-==================================================
-3. MERGE DUPLICATES, BUT NEVER SILENTLY DROP THEM
-==================================================
-
-If multiple input features overlap, they may be grouped into one capability.
-
-Example:
-"route sharing" and "social ride feed" may be grouped if appropriate.
-However, the reason must make clear that they were grouped (e.g. "Grouped social ride feed and route sharing features that distract from core navigation.").
-Do not silently discard a meaningful input feature.
-
-==================================================
-4. COMPLETE ACCOUNTING CHECK
-==================================================
-
-Before returning the JSON, internally compare the user's original feature list against:
-must_haves + discarded_bloat
-
-Ask:
-"Can I trace every major requested capability to one of these two arrays?"
-
-If NO:
-Revise the output before returning. Every major requested capability must be explicitly present in must_haves or discarded_bloat.
-
-==================================================
-5. DO NOT OVER-GENERALIZE NOISE
-==================================================
-
-Preserve the user's actual feature names whenever possible.
-Instead of returning generic umbrella categories:
-- Instead of "Social features" -> return "Social ride feed"
-- Instead of "Commerce" -> return "Bike parts marketplace"
-- Instead of "Gamification" -> return "Crypto rewards for miles ridden"
-
-Keep the feature title specific and faithful to what the user wrote.
-
-==================================================
-6. OUTPUT SIZE
-==================================================
-
-Must-haves:
-2–5 normally. Represents the minimum complete end-to-end loop required to deliver the core value.
-
-Discarded features (discarded_bloat):
-ALL meaningful features that were cut.
-Do not cap discarded_bloat at 4, 5, 6, or any arbitrary number. Every cut feature from the user's input must appear here.
-
-==================================================
-7. HARSH TRUTH MUST BE LOGICAL, NOT MARKET SPECULATION
-==================================================
-
-The harsh_truth must explain WHY features were cut.
-
-It must NOT make unsupported claims about:
-- what customers will buy
-- what users definitely want
-- market demand
-- willingness to pay
-- business success
-unless the user supplied actual evidence.
-
-Bad: "Nobody will pay for..."
-Bad: "The market only wants..."
-Good: "You're adding social, commerce, and fitness layers before proving the navigation loop is useful."
-Good: "The core job is getting a cyclist from A to B; everything else depends on that experience being worth returning to."
-
-The harsh truth should be provocative through product logic, not invented market evidence.
-
-==================================================
-8. CORE VALUE MUST REPRESENT THE COMPLETE MVP LOOP
-==================================================
-
-Before writing core_value, internally ask:
-"What is the simplest complete user journey this MVP must support?"
-
-The core_value should describe that journey using plain language reflecting the user's actual wording.
-Mentally use this structure:
-"For [primary user], help them [achieve outcome] by [core mechanism]."
-
-==================================================
-9. MUST-HAVE REASONS MUST BE SPECIFIC
-==================================================
-
-For example:
-Feature: "Turn-by-turn navigation"
-Good reason: "Without navigation, the product cannot deliver its primary promised outcome."
-Bad reason: "This is important for users."
-
-Reasons must be specific to the user's product, not generic templates.
-
-==================================================
-10. NO GENERIC AI LANGUAGE
-==================================================
-
-Avoid:
-- "seamless"
-- "innovative"
-- "comprehensive"
-- "next-generation"
-- "revolutionary"
-- "AI-powered solution"
-unless directly relevant.
-
-TRIM should sound like a senior product manager, not a marketing copywriter.
-
-==================================================
-STEP 1 — UNDERSTAND THE IDEA
-==================================================
-
-First internally determine:
-1. Who is the primary user?
-2. What problem are they trying to solve?
-3. What outcome does the user actually care about?
-4. What is the single most important action the product must perform?
-5. What is the minimum end-to-end loop required to deliver that outcome?
-6. What is the complete inventory of all features mentioned in the user's input?
-
-Do not output this internal reasoning.
-
-==================================================
-STEP 2 — FIND THE CORE VALUE
-==================================================
-
-Write one concise sentence describing the product's absolute core purpose.
-It must represent the simplest complete user journey the MVP must support.
-Derived directly from the user's stated intent without invented qualifiers, product promises, or marketing buzzwords.
-
-==================================================
-STEP 3 — IDENTIFY MUST-HAVES
-==================================================
-
-Identify the SMALLEST number of capabilities required to deliver the core value.
-Usually return 2–5 must-haves.
-Do NOT force exactly 3. If two capabilities are enough, return 2. If four are genuinely necessary, return 4.
-
-A must-have must satisfy this test:
-"If this capability is removed, can the user still complete the core outcome?"
-If NO → Must-Have.
-If YES → Noise.
-
-IMPORTANT:
-Think in terms of PRODUCT CAPABILITIES, not UI components.
-Bad: "Beautiful dashboard" -> Good: "Display the generated workout plan"
-Bad: "Login screen" -> Good: "Allow users to save their workout plan"
-Do not invent infrastructure as a must-have unless it is essential to the core experience.
-Do NOT invent qualifiers like "real-time", "instant", "automatic" unless user explicitly specified them.
-
-==================================================
-STEP 4 — PRESERVE DEPENDENCIES
-==================================================
-
-Understand feature dependencies. Do not keep a random feature just because it sounds important.
-Preserve the prerequisite capabilities required for the core outcome loop.
-
-==================================================
-STEP 5 — CLASSIFY NOISE (DISCARDED BLOAT)
-==================================================
-
-Discard features that are primarily:
-social features, gamification, cosmetic customization, growth features, marketing features, monetization features, analytics dashboards, administrative dashboards, marketplaces, community features, secondary automation, advanced personalization, integrations not required for the first usable loop, investor/startup extras, "nice to have" AI features, future expansion features.
-
-Every meaningful feature cut from the user's input MUST be listed in discarded_bloat. Do not cap this list. Preserve the user's specific terminology (e.g. "Bike parts marketplace" instead of "Commerce").
-
-==================================================
-STEP 6 — DO NOT INVENT CAPABILITIES
-==================================================
-
-Only reason from capabilities implied or explicitly stated by the user.
-Do not invent market research, browsing, competitor data, real-world validation, payment integrations, device capabilities, or AI capabilities unless they are actually part of the user's idea.
-Do not claim that the product has validated a market or proven willingness to pay without real evidence.
-
-==================================================
-STEP 7 — PRODUCT NAME
-==================================================
-
-Create a short, memorable project_name based on the user's idea.
-Prefer 1–3 words. Avoid generic names like "AI Platform", "Smart App", "Super App".
-The name should feel like a plausible, punchy product name.
-
-==================================================
-STEP 8 — MVP SCORE
-==================================================
-
-Return an integer from 0–100 representing MVP CLARITY:
-90–100 = exceptionally focused
-75–89 = strong MVP but some trimming remains
-50–74 = moderately bloated / unclear
-25–49 = seriously over-scoped
-0–24 = no coherent MVP yet
-
-==================================================
-STEP 9 — BUILD ORDER
-==================================================
-
-Create 2–5 ordered implementation steps showing the smallest sensible build sequence (e.g. 1. Capture input, 2. Process core task, 3. Deliver core result).
-This is a product sequence representing dependency and value, NOT a project management plan.
-
-==================================================
-STEP 10 — WHY EACH FEATURE SURVIVES OR GETS CUT
-==================================================
-
-For every must-have: Explain in one concise sentence why it is necessary for the MVP. The reason must be specific to the promised outcome (e.g., "Without navigation, the product cannot deliver its primary promised outcome.").
-For every discarded feature: Explain in one concise sentence why it does not belong in the MVP. If multiple input features were merged, note the grouping in the reason.
-Reasons must be specific to the user's product, not generic templates.
-
-==================================================
-STEP 11 — HARSH TRUTH
-==================================================
-
-Write ONE brutally honest sentence about the fundamental scope mistake.
-Explain WHY features were cut using product architecture logic, NOT speculative market claims.
-Bad: "Nobody will pay for this..." or "The market only wants..."
-Good: "You're adding social, commerce, and fitness layers before proving the navigation loop is useful."
-
-==================================================
-FINAL QUALITY CHECK
-==================================================
-
-Before returning JSON, verify:
-
-[ ] Every major user-requested feature is accounted for.
-[ ] Nothing important was silently dropped.
-[ ] No unsupported capability was invented.
-[ ] No unsupported feature qualifier was added (e.g. real-time, fastest, instant, automatic, guaranteed, highly accurate, personalized).
-[ ] No unsupported market claim was made.
-[ ] Core value reflects the user's actual wording.
-[ ] Must-haves form a complete end-to-end loop.
-[ ] Noise preserves the specific original feature.
-[ ] Harsh truth explains the scope decision.
-
-If any check fails, rewrite before returning the JSON.
-
-==================================================
-OUTPUT SCHEMA
-==================================================
-
-Return ONLY valid JSON. No markdown, no explanations outside the JSON, no code fences, no extra keys.
-Use exactly this schema:
-{
-  "project_name": "Short product name",
-  "core_value": "One concise sentence describing the absolute core user outcome",
-  "mvp_score": 0,
-  "must_haves": [
-    {
-      "feature": "Core capability",
-      "reason": "Why this is necessary for the MVP"
+  /// Resolves the effective API endpoint:
+  /// - Web: relative '/api/trim' (prevents CORS and avoids hardcoded domains)
+  /// - Non-web / Android: custom override or configured HTTPS backend URL
+  static String resolveEndpoint([String? customOverride]) {
+    if (customOverride != null && customOverride.trim().isNotEmpty) {
+      return customOverride.trim();
     }
-  ],
-  "discarded_bloat": [
-    {
-      "feature": "Feature that should be cut",
-      "reason": "Why it does not belong in the MVP"
+    if (kIsWeb) {
+      return '/api/trim';
     }
-  ],
-  "build_order": [
-    "Step 1",
-    "Step 2",
-    "Step 3"
-  ],
-  "harsh_truth": "One brutally honest sentence about the scope mistake"
-}
-''';
+    return _defaultBackendUrl;
+  }
 
   final http.Client? _customClient;
+  final String? customEndpoint;
+  final int defaultMaxRetries;
+  final Duration? defaultInitialBackoff;
 
-  static const String _defaultApiKey = String.fromEnvironment('GROQ_API_KEY', defaultValue: '');
+  GroqService({
+    http.Client? client,
+    this.customEndpoint,
+    this.defaultMaxRetries = 2,
+    this.defaultInitialBackoff,
+  }) : _customClient = client;
 
-  GroqService({http.Client? client}) : _customClient = client;
-
-  /// Retrieve stored API key from device preferences, falling back to environment key.
+  /// Retrieve stored API key from device preferences (for optional dev override).
   static Future<String?> getSavedApiKey() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -504,10 +225,10 @@ Use exactly this schema:
         return saved.trim();
       }
     } catch (_) {}
-    return _defaultApiKey.isNotEmpty ? _defaultApiKey : null;
+    return null;
   }
 
-  /// Save API key to device preferences.
+  /// Save API key to device preferences (dev override).
   static Future<void> saveApiKey(String apiKey) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_apiKeyPrefKey, apiKey.trim());
@@ -519,137 +240,391 @@ Use exactly this schema:
     await prefs.remove(_apiKeyPrefKey);
   }
 
-  /// Sends the bloated idea to Groq API using model openai/gpt-oss-120b
-  /// and validates the ruthless MVP JSON completion string.
+  static bool _isRequestInFlight = false;
+  static TrimCancellableToken? _activeGlobalToken;
+  static Future<TrimResult>? _activeInFlightFuture;
+  static String? _activeInFlightRequestId;
+  static int _globalRequestCounter = 0;
+
+  /// Returns true if a Trim request is currently actively in flight across the application.
+  static bool get isRequestInFlight => _isRequestInFlight;
+
+  /// Returns the current active cancellation token if in-flight.
+  static TrimCancellableToken? get activeGlobalToken => _activeGlobalToken;
+
+  /// Resets the in-flight state (used for test isolation).
+  @visibleForTesting
+  static void resetInFlightState() {
+    _isRequestInFlight = false;
+    _activeGlobalToken = null;
+    _activeInFlightFuture = null;
+    _activeInFlightRequestId = null;
+  }
+
+  /// Parses the retry-after duration from HTTP response headers or response body.
+  static Duration parseRetryAfter(
+    Map<String, String> headers,
+    String body, {
+    Duration defaultFallback = const Duration(seconds: 2),
+  }) {
+    // 1. Check HTTP 'retry-after' header (case-insensitive)
+    for (final entry in headers.entries) {
+      if (entry.key.toLowerCase() == 'retry-after') {
+        final val = entry.value.trim();
+        final seconds = int.tryParse(val);
+        if (seconds != null && seconds > 0) {
+          return Duration(seconds: seconds);
+        }
+        final doubleSec = double.tryParse(val);
+        if (doubleSec != null && doubleSec > 0) {
+          return Duration(milliseconds: (doubleSec * 1000).ceil());
+        }
+      }
+    }
+
+    // 2. Fallback: Parse body message for "try again in X.Xs" or "in Xs"
+    try {
+      final match = RegExp(r'try again in\s+([0-9.]+)\s*s', caseSensitive: false).firstMatch(body);
+      if (match != null) {
+        final seconds = double.tryParse(match.group(1)!);
+        if (seconds != null && seconds > 0) {
+          return Duration(milliseconds: (seconds * 1000).ceil());
+        }
+      }
+    } catch (_) {}
+
+    return defaultFallback;
+  }
+
+  static Duration _calculateBackoff(int retryIndex, {Duration? initialBackoff}) {
+    if (initialBackoff != null) {
+      if (initialBackoff == Duration.zero) return Duration.zero;
+      return initialBackoff * (1 << retryIndex);
+    }
+    // Default exponential backoff: 1.5s, 3.0s (clamped to max 15s)
+    final ms = (1500 * (1 << retryIndex)).clamp(500, 15000);
+    return Duration(milliseconds: ms);
+  }
+
+  static Future<void> _sleepInterruptible(Duration duration, TrimCancellableToken? cancelToken) async {
+    if (duration <= Duration.zero) return;
+    const interval = Duration(milliseconds: 100);
+    var remaining = duration;
+    while (remaining > Duration.zero) {
+      if (cancelToken?.isCancelled == true) {
+        throw const GroqCancelledException();
+      }
+      final step = remaining > interval ? interval : remaining;
+      await Future.delayed(step);
+      remaining -= step;
+    }
+  }
+
+  /// Sends the bloated idea to Trim backend (/api/trim)
+  /// with true single-flight concurrency protection and controlled retry logic.
   Future<TrimResult> trimAppIdea({
     required String rawIdea,
     String? apiKey,
     http.Client? client,
     TrimCancellableToken? cancelToken,
-    int? requestId,
+    dynamic requestId,
+    int? maxRetries,
+    Duration? initialBackoff,
   }) async {
-    if (cancelToken?.isCancelled == true) {
+    final String clientReqId = requestId != null
+        ? requestId.toString()
+        : 'req_${DateTime.now().microsecondsSinceEpoch}_${++_globalRequestCounter}';
+
+    final effectiveToken = cancelToken ?? TrimCancellableToken();
+    effectiveToken.setPhase(TrimRequestPhase.localPreparing, requestId: clientReqId);
+
+    if (kDebugMode) {
+      debugPrint(
+        '[TRIM DIAGNOSTIC] [Phase A - Local Prepare] Request ID: $clientReqId '
+        'Timestamp: ${DateTime.now().toIso8601String()}',
+      );
+    }
+
+    if (effectiveToken.isCancelled) {
+      if (kDebugMode) {
+        debugPrint(
+          '[TRIM DIAGNOSTIC] [Phase A - Cancelled] Request ID: $clientReqId '
+          'Timestamp: ${DateTime.now().toIso8601String()} (Cancelled before HTTP transmission)',
+        );
+      }
       throw const GroqCancelledException();
     }
 
-    final keyToUse = apiKey ?? await getSavedApiKey();
-
-    if (keyToUse == null || keyToUse.trim().isEmpty) {
-      throw const GroqUnauthorizedException(
-        'Missing Groq API Key. Please provide a valid Groq API key to continue.',
-      );
+    // Single-flight coalescing:
+    // If a request is already in flight, reuse the active in-flight future.
+    // This strictly guarantees that ONE user Trim action NEVER produces multiple /api/trim requests!
+    if (_isRequestInFlight && _activeInFlightFuture != null) {
+      if (kDebugMode) {
+        debugPrint(
+          '[TRIM DIAGNOSTIC] [Single-Flight Coalesced] Request ID: $clientReqId '
+          'Timestamp: ${DateTime.now().toIso8601String()} '
+          'Coalescing concurrent call into active in-flight Request ID: $_activeInFlightRequestId '
+          '(Zero additional HTTP requests sent to /api/trim)',
+        );
+      }
+      return _activeInFlightFuture!;
     }
 
-    final trimmedIdea = rawIdea.trim();
-    if (trimmedIdea.isEmpty) {
-      throw const GroqBadRequestException(
-        'The app idea is empty. Please dump your chaotic thoughts first.',
-      );
-    }
+    _isRequestInFlight = true;
+    _activeGlobalToken = effectiveToken;
+    _activeInFlightRequestId = clientReqId;
 
-    final uri = Uri.parse(_groqApiEndpoint);
-    final payload = {
-      'model': _defaultModel,
-      'temperature': 0.2,
-      'response_format': {'type': 'json_object'},
-      'messages': [
-        {
-          'role': 'system',
-          'content': _systemPrompt,
-        },
-        {
-          'role': 'user',
-          'content': trimmedIdea,
-        },
-      ],
-    };
+    final future = _executeTrimRequest(
+      rawIdea: rawIdea,
+      apiKey: apiKey,
+      client: client,
+      cancelToken: effectiveToken,
+      clientRequestId: clientReqId,
+      maxRetries: maxRetries,
+      initialBackoff: initialBackoff,
+    );
+    _activeInFlightFuture = future;
 
-    if (kDebugMode) {
-      debugPrint('[TRIM DEBUG] Starting Groq request [ID: $requestId]');
-      debugPrint('[TRIM DEBUG] Model: $_defaultModel');
-      debugPrint('[TRIM DEBUG] Input length: ${trimmedIdea.length}');
+    try {
+      return await future;
+    } finally {
+      if (identical(_activeInFlightFuture, future)) {
+        _isRequestInFlight = false;
+        _activeGlobalToken = null;
+        _activeInFlightFuture = null;
+        _activeInFlightRequestId = null;
+      }
     }
+  }
+
+  Future<TrimResult> _executeTrimRequest({
+    required String rawIdea,
+    required TrimCancellableToken cancelToken,
+    required String clientRequestId,
+    String? apiKey,
+    http.Client? client,
+    int? maxRetries,
+    Duration? initialBackoff,
+  }) async {
+    final effectiveMaxRetries = maxRetries ?? defaultMaxRetries;
+    final effectiveInitialBackoff = initialBackoff ?? defaultInitialBackoff;
 
     final effectiveClient = client ?? _customClient ?? http.Client();
     final bool isOwnedClient = (client == null && _customClient == null);
-    cancelToken?.attachClient(effectiveClient);
+    cancelToken.attachClient(effectiveClient);
 
-    http.Response response;
+    final maxAttempts = 1 + effectiveMaxRetries;
+    int attempt = 0;
+    final stopwatch = Stopwatch()..start();
+
     try {
-      response = await effectiveClient
-          .post(
-            uri,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ${keyToUse.trim()}',
-            },
-            body: json.encode(payload),
-          )
-          .timeout(_timeoutDuration);
-      if (cancelToken?.isCancelled == true) {
-        throw const GroqCancelledException();
+      final trimmedIdea = rawIdea.trim();
+      if (trimmedIdea.isEmpty) {
+        throw const GroqBadRequestException(
+          'The app idea is empty. Please dump your chaotic thoughts first.',
+        );
       }
-    } on SocketException catch (e) {
-      if (cancelToken?.isCancelled == true) throw const GroqCancelledException();
-      if (kDebugMode) debugPrint('[TRIM DEBUG] SocketException: $e');
-      throw const GroqNetworkException();
-    } on TimeoutException catch (e) {
-      if (cancelToken?.isCancelled == true) throw const GroqCancelledException();
-      if (kDebugMode) debugPrint('[TRIM DEBUG] TimeoutException: $e');
-      throw const GroqTimeoutException();
-    } catch (e) {
-      if (cancelToken?.isCancelled == true ||
-          (e is http.ClientException && e.message.contains('Client is closed'))) {
-        throw const GroqCancelledException();
+
+      final endpointUrl = resolveEndpoint(customEndpoint);
+      final uri = Uri.parse(endpointUrl);
+      final payload = {
+        'rawIdea': trimmedIdea,
+        'clientRequestId': clientRequestId,
+      };
+
+      final headers = <String, String>{
+        'Content-Type': 'application/json',
+        'x-client-request-id': clientRequestId,
+      };
+      if (apiKey != null && apiKey.trim().isNotEmpty) {
+        headers['x-groq-key'] = apiKey.trim();
       }
-      if (e is GroqException) rethrow;
-      if (kDebugMode) debugPrint('[TRIM DEBUG] Connection exception: $e');
-      throw GroqNetworkException('Connection failed: $e');
+
+      while (attempt < maxAttempts) {
+        if (cancelToken.isCancelled) {
+          throw const GroqCancelledException();
+        }
+
+        attempt++;
+        final attemptStartTime = DateTime.now();
+
+        // Phase B: HTTP request transmitted over network
+        cancelToken.setPhase(TrimRequestPhase.networkTransmitted, requestId: clientRequestId);
+        if (kDebugMode) {
+          debugPrint(
+            '[TRIM DIAGNOSTIC] [Phase B - Request Start] Request ID: $clientRequestId '
+            'Attempt $attempt/$maxAttempts Timestamp: ${attemptStartTime.toIso8601String()} '
+            'Endpoint: $endpointUrl',
+          );
+        }
+
+        http.Response response;
+        try {
+          response = await effectiveClient
+              .post(
+                uri,
+                headers: headers,
+                body: json.encode(payload),
+              )
+              .timeout(_timeoutDuration);
+
+          if (cancelToken.isCancelled) {
+            if (kDebugMode) {
+              debugPrint(
+                '[TRIM DIAGNOSTIC] [Phase B - Cancelled] Request ID: $clientRequestId '
+                'Timestamp: ${DateTime.now().toIso8601String()} '
+                '(Cancelled after network transmission; socket closed locally)',
+              );
+            }
+            throw const GroqCancelledException();
+          }
+        } on SocketException catch (e) {
+          if (cancelToken.isCancelled) throw const GroqCancelledException();
+          if (attempt < maxAttempts) {
+            final backoff = _calculateBackoff(attempt - 1, initialBackoff: effectiveInitialBackoff);
+            if (kDebugMode) {
+              debugPrint('[TRIM DIAGNOSTIC] SocketException ($e). Retrying in ${backoff.inMilliseconds}ms...');
+            }
+            await _sleepInterruptible(backoff, cancelToken);
+            continue;
+          }
+          throw const GroqNetworkException();
+        } on TimeoutException catch (e) {
+          if (cancelToken.isCancelled) throw const GroqCancelledException();
+          if (attempt < maxAttempts) {
+            final backoff = _calculateBackoff(attempt - 1, initialBackoff: effectiveInitialBackoff);
+            if (kDebugMode) {
+              debugPrint('[TRIM DIAGNOSTIC] TimeoutException ($e). Retrying in ${backoff.inMilliseconds}ms...');
+            }
+            await _sleepInterruptible(backoff, cancelToken);
+            continue;
+          }
+          throw const GroqTimeoutException();
+        } catch (e) {
+          if (cancelToken.isCancelled ||
+              (e is http.ClientException && e.message.contains('Client is closed'))) {
+            throw const GroqCancelledException();
+          }
+          if (e is GroqException) rethrow;
+          if (attempt < maxAttempts) {
+            final backoff = _calculateBackoff(attempt - 1, initialBackoff: effectiveInitialBackoff);
+            await _sleepInterruptible(backoff, cancelToken);
+            continue;
+          }
+          throw GroqNetworkException('Connection failed: $e');
+        }
+
+        final statusCode = response.statusCode;
+        final responseBody = response.body;
+        final elapsed = stopwatch.elapsedMilliseconds;
+
+        if (kDebugMode) {
+          debugPrint(
+            '[TRIM DIAGNOSTIC] [Request Complete] Request ID: $clientRequestId '
+            'Attempt $attempt Status: $statusCode Duration: ${elapsed}ms '
+            'Timestamp: ${DateTime.now().toIso8601String()}',
+          );
+        }
+
+        // 200 OK: Successful completion
+        if (statusCode == 200) {
+          cancelToken.setPhase(TrimRequestPhase.completed, requestId: clientRequestId);
+          if (responseBody.trim().isEmpty) {
+            throw const GroqParseException('Groq API returned an empty response.');
+          }
+          return _parseSuccessfulResponse(responseBody);
+        }
+
+        // HTTP 429: Rate Limit Exceeded
+        if (statusCode == 429) {
+          final retryAfter = parseRetryAfter(response.headers, responseBody);
+          final errorMsg = _extractErrorMessage(responseBody);
+
+          if (attempt < maxAttempts) {
+            final backoff = effectiveInitialBackoff != null
+                ? effectiveInitialBackoff * attempt
+                : (retryAfter.inMilliseconds > 0
+                    ? retryAfter
+                    : _calculateBackoff(attempt - 1, initialBackoff: const Duration(seconds: 2)));
+            // Clamp backoff to maximum 15s to keep UI responsive
+            final effectiveBackoff = backoff > const Duration(seconds: 15) ? const Duration(seconds: 15) : backoff;
+
+            if (kDebugMode) {
+              debugPrint(
+                '[TRIM DIAGNOSTIC] HTTP 429 Rate Limit. retry-after: ${retryAfter.inSeconds}s. '
+                'Backing off for ${effectiveBackoff.inMilliseconds}ms before attempt ${attempt + 1}/$maxAttempts',
+              );
+            }
+
+            await _sleepInterruptible(effectiveBackoff, cancelToken);
+            continue;
+          }
+
+          throw GroqRateLimitException(
+            errorMsg.isNotEmpty ? errorMsg : 'Too many trims are happening right now. Give it a moment and try again.',
+            retryAfter,
+          );
+        }
+
+        // HTTP 401: Unauthorized / Expired API Key (Fail immediately, zero retries)
+        if (statusCode == 401) {
+          final errorMsg = _extractErrorMessage(responseBody);
+          throw GroqUnauthorizedException(
+            errorMsg.isNotEmpty ? errorMsg : 'Trim service authorization failed.',
+          );
+        }
+
+        // HTTP 400: Bad Request
+        if (statusCode == 400) {
+          final errorMsg = _extractErrorMessage(responseBody);
+          throw GroqBadRequestException(
+            errorMsg.isNotEmpty ? errorMsg : 'The app idea could not be analyzed.',
+          );
+        }
+
+        // HTTP 5xx: Server Error (Exponential Backoff)
+        if (statusCode >= 500) {
+          final errorMsg = _extractErrorMessage(responseBody);
+          if (attempt < maxAttempts) {
+            final backoff = _calculateBackoff(attempt - 1, initialBackoff: effectiveInitialBackoff);
+            if (kDebugMode) {
+              debugPrint('[TRIM DIAGNOSTIC] HTTP $statusCode Server Error. Retrying in ${backoff.inMilliseconds}ms...');
+            }
+            await _sleepInterruptible(backoff, cancelToken);
+            continue;
+          }
+          throw GroqServerException(
+            errorMsg.isNotEmpty ? errorMsg : 'Trim service is temporarily paused. Please try again in a moment.',
+            statusCode,
+          );
+        } else if (statusCode == 403) {
+          final errorMsg = _extractErrorMessage(responseBody);
+          throw GroqForbiddenException(
+            errorMsg.isNotEmpty ? errorMsg : 'Trim service is temporarily unavailable. Please try again in a moment.',
+          );
+        } else if (statusCode == 404) {
+          final errorMsg = _extractErrorMessage(responseBody);
+          throw GroqNotFoundException(
+            errorMsg.isNotEmpty ? errorMsg : 'Trim endpoint not found.',
+          );
+        } else {
+          final errorMsg = _extractErrorMessage(responseBody);
+          throw GroqBadRequestException(
+            errorMsg.isNotEmpty ? errorMsg : 'Unexpected response ($statusCode).',
+            statusCode,
+          );
+        }
+      }
+
+      throw const GroqServerException('Request failed after maximum retry attempts.');
     } finally {
       if (isOwnedClient) {
         effectiveClient.close();
       }
     }
-
-    final statusCode = response.statusCode;
-    final responseBody = response.body;
-
-    if (kDebugMode) {
-      debugPrint('[TRIM DEBUG] HTTP status: $statusCode');
-      debugPrint('[TRIM DEBUG] Raw response: $responseBody');
-    }
-
-    // Step 7: Check for empty response
-    if (responseBody.trim().isEmpty) {
-      throw const GroqParseException('Groq API returned an empty response.');
-    }
-
-    // Explicit Status Code Handling
-    if (statusCode == 200) {
-      return _parseSuccessfulResponse(responseBody);
-    } else if (statusCode == 400) {
-      final errorMsg = _extractErrorMessage(responseBody);
-      throw GroqBadRequestException('Groq Bad Request (400): $errorMsg');
-    } else if (statusCode == 401) {
-      throw const GroqUnauthorizedException();
-    } else if (statusCode == 403) {
-      final errorMsg = _extractErrorMessage(responseBody);
-      throw GroqForbiddenException('Groq Forbidden (403): $errorMsg');
-    } else if (statusCode == 404) {
-      final errorMsg = _extractErrorMessage(responseBody);
-      throw GroqNotFoundException('Groq Not Found (404): $errorMsg');
-    } else if (statusCode == 429) {
-      throw const GroqRateLimitException();
-    } else if (statusCode >= 500) {
-      final errorMsg = _extractErrorMessage(responseBody);
-      throw GroqServerException('Groq Server Error ($statusCode): $errorMsg', statusCode);
-    } else {
-      final errorMsg = _extractErrorMessage(responseBody);
-      throw GroqBadRequestException('Unexpected Groq response ($statusCode): $errorMsg', statusCode);
-    }
   }
 
-  /// Parses and validates the completion string from choices[0].message.content.
+  /// Parses and validates the completion string from direct TrimResult JSON or legacy envelope.
   TrimResult _parseSuccessfulResponse(String responseBody) {
     // Step 4: First decode top-level HTTP response
     final dynamic responseJson;
@@ -657,17 +632,24 @@ Use exactly this schema:
       responseJson = jsonDecode(responseBody);
     } catch (e) {
       if (kDebugMode) debugPrint('[TRIM DEBUG] Malformed HTTP response JSON: $e');
-      throw GroqParseException('Malformed HTTP JSON response from Groq: $e');
+      throw GroqParseException('Malformed JSON response from Trim service: $e');
     }
 
     if (responseJson is! Map<String, dynamic>) {
       throw const GroqParseException('HTTP response is not a valid JSON map.');
     }
 
-    // Extract choices[0].message.content
+    // Direct TrimResult JSON contract from /api/trim
+    if (responseJson.containsKey('project_name') && responseJson.containsKey('core_value')) {
+      final result = TrimResult.fromJson(responseJson);
+      if (kDebugMode) debugPrint('[TRIM DEBUG] Parsed TrimResult directly from backend');
+      return result;
+    }
+
+    // Fallback: Extract choices[0].message.content (legacy Groq response envelope)
     final choices = responseJson['choices'];
     if (choices == null || choices is! List || choices.isEmpty) {
-      throw const GroqParseException('Groq API response missing "choices" array.');
+      throw const GroqParseException('Response missing "choices" or Trim schema keys.');
     }
 
     final firstChoice = choices[0];

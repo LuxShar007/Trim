@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:trim/widgets/trim_chevron.dart';
 import 'package:trim/widgets/trim_glass_button.dart';
+import 'package:trim/widgets/trim_glass_surface.dart';
 import 'package:trim/widgets/trim_morph_card.dart';
 import 'package:trim/widgets/trim_scope_metric.dart';
 
@@ -26,10 +27,10 @@ void main() {
       expect(find.byType(TrimChevron), findsOneWidget);
 
       // Reason is collapsed (not visible)
-      expect(find.text('WHY CUT?'), findsNothing);
+      expect(find.text('Why this was cut'), findsNothing);
     });
 
-    testWidgets('Tapping CUT card expands anchored card to reveal WHY CUT? reason', (WidgetTester tester) async {
+    testWidgets('Tapping CUT card expands anchored card to reveal Why this was cut reason', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -43,7 +44,7 @@ void main() {
       );
 
       // Initially collapsed
-      expect(find.text('WHY CUT?'), findsNothing);
+      expect(find.text('Why this was cut'), findsNothing);
 
       // Tap card to initiate anchored expansion
       await tester.tap(find.text('3D Metaverse Virtual Gym'));
@@ -51,8 +52,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 150)); // Mid-expansion
       await tester.pumpAndSettle(); // Settled in expanded state
 
-      // Now expanded: WHY CUT label and explanation text are present
-      expect(find.text('WHY CUT?'), findsOneWidget);
+      // Now expanded: Why this was cut label and explanation text are present
+      expect(find.text('Why this was cut'), findsOneWidget);
       expect(
         find.text('A 3D gym is a visual layer that does not affect workout logging.'),
         findsOneWidget,
@@ -63,10 +64,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Reason is hidden again
-      expect(find.text('WHY CUT?'), findsNothing);
+      expect(find.text('Why this was cut'), findsNothing);
     });
 
-    testWidgets('Tapping Core / PASS card reveals WHY KEEP? reason', (WidgetTester tester) async {
+    testWidgets('Tapping Core / PASS card reveals Why this survives reason', (WidgetTester tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -80,13 +81,13 @@ void main() {
       );
 
       expect(find.text('PASS'), findsOneWidget);
-      expect(find.text('WHY KEEP?'), findsNothing);
+      expect(find.text('Why this survives'), findsNothing);
 
       // Tap to expand
       await tester.tap(find.text('Workout Logging Engine'));
       await tester.pumpAndSettle();
 
-      expect(find.text('WHY KEEP?'), findsOneWidget);
+      expect(find.text('Why this survives'), findsOneWidget);
       expect(find.text('Core input mechanism essential for tracking progress.'), findsOneWidget);
     });
 
@@ -106,7 +107,69 @@ void main() {
       expect(find.byType(TrimChevron), findsNothing);
       await tester.tap(find.text('Simple Core Item'));
       await tester.pumpAndSettle();
-      expect(find.text('WHY KEEP?'), findsNothing);
+      expect(find.text('Why this survives'), findsNothing);
+    });
+
+    testWidgets('TrimMorphCard with custom reasonLabel uses custom label', (WidgetTester tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: TrimMorphCard(
+              text: 'Custom Triage Item',
+              reason: 'Editorial reason detail.',
+              isPass: true,
+              reasonLabel: 'SURVIVAL JUSTIFICATION',
+              initiallyExpanded: true,
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('SURVIVAL JUSTIFICATION'), findsOneWidget);
+      expect(find.text('Editorial reason detail.'), findsOneWidget);
+    });
+  });
+
+  group('TrimGlassSurface Component Tests', () {
+    testWidgets('TrimGlassSurface renders with low, medium, and high intensity levels', (WidgetTester tester) async {
+      for (final intensity in [
+        TrimGlassIntensity.low,
+        TrimGlassIntensity.medium,
+        TrimGlassIntensity.high,
+      ]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: TrimGlassSurface(
+                intensity: intensity,
+                accentColor: const Color(0xFF10B981),
+                child: const Text('Surface Content'),
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('Surface Content'), findsOneWidget);
+        expect(find.byType(TrimGlassSurface), findsOneWidget);
+      }
+    });
+
+    testWidgets('TrimGlassSurface smoothly handles continuous morphProgress values', (WidgetTester tester) async {
+      for (final progress in [0.0, 0.25, 0.5, 0.75, 1.0]) {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: TrimGlassSurface(
+                morphProgress: progress,
+                accentColor: const Color(0xFF9E4B56),
+                child: Text('Progress ${progress.toStringAsFixed(2)}'),
+              ),
+            ),
+          ),
+        );
+
+        expect(find.text('Progress ${progress.toStringAsFixed(2)}'), findsOneWidget);
+      }
     });
   });
 

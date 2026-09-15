@@ -2,18 +2,21 @@ import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_typography.dart';
 
-/// The "WHY CUT?" or "WHY KEEP?" reason block that emerges organically
-/// from the SAME parent card rather than looking like a separate rectangle inserted underneath.
+/// The expandable reason block that physically emerges from the SAME parent card.
+/// Does not look like a separate rectangle inserted underneath; unfolds organically
+/// with the card container.
 class TrimExpandableReason extends StatelessWidget {
   final String reason;
   final bool isPass;
   final double progress; // 0.0 = collapsed, 1.0 = fully expanded
+  final String? label;
 
   const TrimExpandableReason({
     super.key,
     required this.reason,
     required this.isPass,
     required this.progress,
+    this.label,
   });
 
   @override
@@ -22,12 +25,15 @@ class TrimExpandableReason extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    // Delayed fade and slide for organic emergence
-    final textOpacity = ((progress - 0.25) / 0.75).clamp(0.0, 1.0);
-    final textTranslateY = (1.0 - textOpacity) * 4.0;
+    // Delayed fade and upward vertical offset for natural emergence as the surface unfolds
+    final textOpacity = ((progress - 0.20) / 0.80).clamp(0.0, 1.0);
+    final textTranslateY = (1.0 - textOpacity) * 5.0;
 
-    final accentColor = isPass ? AppColors.emerald : AppColors.mutedText;
-    final sectionLabel = isPass ? 'WHY KEEP?' : 'WHY CUT?';
+    final accentColor = isPass
+        ? AppColors.emerald
+        : const Color(0xFFE06D7D); // restrained muted red/rose
+
+    final sectionLabel = label ?? (isPass ? 'Why this survives' : 'Why this was cut');
 
     return ClipRect(
       child: Align(
@@ -41,34 +47,38 @@ class TrimExpandableReason extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                const SizedBox(height: 9.0),
+                const SizedBox(height: 10.0),
 
-                // Hairline divider showing internal emergence
+                // Hairline divider showing internal emergence within the optical surface
                 Container(
                   height: 1.0,
                   width: double.infinity,
-                  color: const Color(0xFF1E1E24),
+                  color: isPass
+                      ? AppColors.emerald.withValues(alpha: 0.15)
+                      : const Color(0xFF27272A).withValues(alpha: 0.6),
                 ),
 
                 const SizedBox(height: 9.0),
 
-                // Small technical label in JetBrains Mono
+                // Section Label: "Why this survives" / "Why this was cut"
                 Text(
                   sectionLabel,
                   style: AppTypography.monoLabel.copyWith(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.0,
+                    fontSize: 10.0,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.6,
                     color: accentColor,
                   ),
                 ),
 
                 const SizedBox(height: 4.0),
 
-                // Editorial reason text in Manrope
+                // Concise editorial explanation
                 Text(
                   reason,
                   style: AppTypography.featureExplanation.copyWith(
+                    fontSize: 13.0,
+                    height: 1.45,
                     color: isPass
                         ? const Color(0xFFD4D4D8)
                         : const Color(0xFFA1A1AA),

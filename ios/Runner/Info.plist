@@ -66,5 +66,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Trim uses speech recognition to convert your spoken product idea into text.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Trim uses your microphone to record your product idea for brain dumping.</string>
 </dict>
 </plist>
