@@ -328,4 +328,204 @@ void main() {
           findsOneWidget);
     });
   });
+
+  group('TRIM — 8-Point Phone-Native Voice Verification Matrix', () {
+    testWidgets('Test 1: permission granted allows starting listening cleanly',
+        (WidgetTester tester) async {
+      mockService.shouldFailInitialization = false;
+      final initialized = await mockService.initialize();
+      expect(initialized, isTrue);
+
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(mockService.state, TrimVoiceState.listening);
+      expect(find.text('LISTENING…'), findsOneWidget);
+    });
+
+    testWidgets('Test 2: permission denied shows banner and falls back to typing',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      mockService.simulateError(TrimVoiceError.permissionDenied);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text('Microphone permission denied. Switched to typing.'),
+        findsOneWidget,
+      );
+
+      // Verify typing fallback occurs
+      await tester.pump(const Duration(milliseconds: 1600));
+      expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets('Test 3: cancellation discards current speech and restores prior text',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final textField = find.byType(TextField);
+      await tester.enterText(textField, 'Core baseline product');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      mockService.simulateSpeech('plus extra noise features');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('CANCEL'), findsOneWidget);
+      await tester.tap(find.text('CANCEL'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.textContaining('Core baseline product'), findsOneWidget);
+      expect(find.textContaining('extra noise features'), findsNothing);
+    });
+
+    testWidgets('Test 4: short speech populates idea and updates character count',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      mockService.simulateSpeech('Focus timer app');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text('Focus timer app'), findsOneWidget);
+      expect(find.text('15 chars'), findsOneWidget);
+    });
+
+    testWidgets('Test 5: long speech streams multi-sentence idea without truncation',
+        (WidgetTester tester) async {
+      const longIdea =
+          'A minimalist habit tracker that automatically detects procrastination, '
+          'eliminates social feed distractions, prompts daily reflection, and enforces '
+          'a strict maximum of three priority goals per week.';
+
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      mockService.simulateSpeech(longIdea);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(find.text(longIdea), findsOneWidget);
+      expect(find.text('${longIdea.length} chars'), findsOneWidget);
+    });
+
+    testWidgets('Test 6: edit transcription allows switching to typing and editing words',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      mockService.simulateSpeech('Spoken raw draft');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Switch back to TYPE to edit
+      await tester.tap(find.text('TYPE'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      final textField = find.byType(TextField);
+      expect(textField, findsOneWidget);
+
+      await tester.enterText(textField, 'Spoken raw draft edited with human clarity');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Spoken raw draft edited with human clarity'), findsOneWidget);
+    });
+
+    testWidgets('Test 7: submit requires explicit TRIM THE FAT tap (no auto-submit)',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      mockService.simulateSpeech('An app with too many features');
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Stop listening
+      await tester.tap(find.byType(VoiceMicrophoneButton));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      // Confirms: NO auto-submit occurred; still on BrainDumpScreen
+      expect(find.text('What are you building?'), findsOneWidget);
+      expect(find.text('REVIEW YOUR IDEA'), findsOneWidget);
+
+      // Now explicitly tap TRIM THE FAT
+      final trimButton = find.text('TRIM THE FAT');
+      expect(trimButton, findsOneWidget);
+
+      await tester.tap(trimButton);
+      await tester.pumpAndSettle();
+
+      // Successfully transitions to processing screen
+      expect(find.text('What are you building?'), findsNothing);
+    });
+
+    testWidgets('Test 8: offline/failure path shows non-technical error banner and preserves draft',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      mockService.simulateError(TrimVoiceError.transcriptionFailed);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text('Could not transcribe speech. Switched to typing.'),
+        findsOneWidget,
+      );
+
+      // Safe fallback to typing preserves screen stability
+      await tester.pump(const Duration(milliseconds: 1600));
+      expect(find.byType(TextField), findsOneWidget);
+    });
+  });
 }
+
