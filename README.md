@@ -1,171 +1,225 @@
-# Trim — The Phone-First AI Product Manager
+# TRIM
+
+> TRIM is a phone-first AI Product Manager that turns bloated product ideas into focused, locked MVPs.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/LuxShar007/Trim/main/web/icons/Icon-192.png" width="84" height="84" alt="Trim Logo" />
 </p>
 
 <p align="center">
-  <strong>Ruthlessly trim chaotic, over-scoped product ideas into locked, executable MVPs.</strong><br>
-  <em>"Remove what does not matter."</em>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Flutter-3.47+-02569B?logo=flutter&logoColor=white" alt="Flutter" />
-  <img src="https://img.shields.io/badge/Dart-3.13+-0175C2?logo=dart&logoColor=white" alt="Dart" />
-  <img src="https://img.shields.io/badge/Platforms-Android%20%7C%20iOS%20%7C%20Web-black" alt="Platforms" />
-  <img src="https://img.shields.io/badge/License-MIT-emerald" alt="License" />
+  <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.47+-02569B?logo=flutter&logoColor=white" alt="Flutter" /></a>
+  <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.13+-0175C2?logo=dart&logoColor=white" alt="Dart" /></a>
+  <img src="https://img.shields.io/badge/Platforms-Android%20%7C%20Web-black" alt="Platforms" />
+  <img src="https://img.shields.io/badge/Tests-109%20Passing-10B981" alt="Tests" />
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-emerald" alt="License" /></a>
 </p>
 
 ---
 
-## 💡 The Philosophy
+## What is TRIM?
 
-Most early-stage software dies not from a lack of features, but from an excess of them. 
+TRIM transforms chaotic, over-engineered feature wishlists into razor-sharp, buildable MVPs in seconds.
 
-**TRIM** is a minimalist, phone-first AI Product Manager designed for founders, solo makers, and engineers. You dump a messy, chaotic, 15-feature product concept, and TRIM ruthlessly dissects it:
+Instead of bloated dashboards and endless user stories, TRIM establishes a strict, non-negotiable triage pipeline:
 
-* **Identifies the Core Value**: What actual problem is being solved?
-* **Isolates the Must-Haves**: The 2–3 capabilities required for user value.
-* **Discards the Bloat**: Rejects features with blunt, uncompromising justifications.
-* **Prescribes Build First Sequence**: A numbered, non-overlapping execution roadmap.
-* **Delivers Product Truth**: Strategic, realistic guidance on what actually moves metrics.
-* **Calculates Scope Reduction**: Telemetry highlighting exactly how much complexity was eliminated.
-* **Locks the MVP Scope**: A deliberate contract to commit to this version and prevent feature creep before shipping.
+$$\text{CHAOS} \longrightarrow \text{AI ANALYSIS} \longrightarrow \text{CORE VALUE} \longrightarrow \text{MUST-HAVES} \longrightarrow \text{DISCARDED BLOAT} \longrightarrow \text{BUILD FIRST} \longrightarrow \text{PRODUCT TRUTH} \longrightarrow \text{SCOPE REDUCTION} \longrightarrow \text{MVP LOCK} \longrightarrow \text{BUILD DESK}$$
 
 ---
 
-## ✨ Core Features
+## Why TRIM?
 
-### 1. 🧠 Brain Dump Canvas
-* OLED edge-to-edge minimalist canvas free of noise and dashboards.
-* Live quiet character telemetry counter.
-* One-tap sample bloated idea insertion for rapid testing.
-* Tactile, spring-physics **Trim the Fat** CTA with double-tap protection and cancellation safety.
+Most software projects fail not because they lack features, but because they have far too many of them.
 
-### 2. ⚡ 4-Stage Processing Pipeline
-* Real product sequence without fake progress bars or developer jargon:
-  `TRIM · ANALYZING` ➔ `UNDERSTANDING` ➔ `TRIMMING` ➔ `LOCKING` ➔ `{TOTAL} → {SURVIVORS} SURVIVE`.
-* Continuous animated liquid feature separation and noise collapse.
-
-### 3. 🎴 Morphing Verdict Cards (`TrimMorphCard`)
-* Custom spring-physics morphing cards — the card remains the exact same visual object throughout expansion and collapse.
-* **The Core**: Emerald check badges and anchored expansion revealing **"WHY KEEP?"** justifications.
-* **The Noise**: Strikethrough titles with red cut tags and anchored expansion revealing **"WHY CUT?"** reasoning.
-* **Progressive Noise Disclosure**: When $> 5$ noise features exist, displays the top 4 items with a spring-animated `+ X MORE CUT` expansion trigger.
-
-### 4. 🔒 Lock & Reopen MVP
-* **Lock MVP**: Expanding restrained glass surface detailing committed capabilities vs rejected features.
-* Persists `isLocked = true` to the local session database with tactile haptic feedback.
-* **Reopen MVP**: Allows unlocking and reconsideration without invalidating or altering the AI verdict.
-
-### 5. 🗂️ Local-First Trim Workspace
-* **Zero Accounts, Zero Cloud, Zero Tracking**: Your device is your product memory.
-* **Dynamic Telemetry Grid**:
-  * `IDEAS TRIMMED`
-  * `FEATURES CUT`
-  * `AVG SCOPE REMOVED (%)`
-* **Recent Trims History**: Reverse-chronological session list displaying scope reduction badges (`18 → 3`), relative timestamps, and `LOCKED` status pills.
-* **Instant Offline Reopening**: Open any past verdict immediately with zero network requests or API costs.
-* **Empty Workspace State**: Minimalist onboarding with `"TRIM AN IDEA"` fast action.
-
-### 6. 📄 Clean Markdown Export
-* Standardized specification export directly shareable to GitHub issues, Notion, Linear, or team Slack.
-* Formatted strictly according to the TRIM spec:
-  * `# Project Name`
-  * `## Core Value`
-  * `## MVP` (`### Must-Haves`, `### Explicitly Cut`)
-  * `## Build First`
-  * `## Product Truth`
-  * `## MVP Status` (`Locked` / `Unlocked`)
-  * `## Scope Reduction` (`18 → 3`, `83% removed`)
-* Smooth button morphing states: `EXPORT MVP` ➔ `EXPORTING...` ➔ `EXPORTED ✓`.
+Feature creep kills velocity, dilutes core value, confuses early users, and burns out founders. TRIM acts as an objective, brutally honest product manager directly in your pocket. Its singular purpose is to enforce discipline: **Remove what does not matter.**
 
 ---
 
-## 🎨 Visual Design Language & Typography
+## Core Experience
 
-TRIM follows its own philosophy: **Remove what does not matter.**
+### 1. Brain Dump
+An edge-to-edge, distraction-free mobile canvas designed for rapid thought capture. Features live character telemetry, instant sample prompt insertion, and robust input validation.
 
-* **Canvas**: Pure OLED Black (`#000000`) with restrained near-black glass surfaces (`#0D0D11` / `#111116`).
-* **Color Accents**:
-  * **Emerald (`#10B981`)**: Strictly reserved for `PASS` badges, surviving feature counts, and locked states.
-  * **Muted Red (`#EF4444`)**: Strictly reserved for `CUT` badges and rejected features.
-  * **Monster Orange (`#FF5E00`)**: Reserved for primary action controls and the signature logo dot.
-* **Typography Hierarchy**:
-  * **Primary UI Font**: `Manrope` (Humanist, editorial, modern sans-serif) for titles, body, reasons, buttons, and Product Truth.
-  * **Technical Monospace Font**: `JetBrains Mono` strictly reserved for section labels (`THE CORE`, `THE NOISE`, `BUILD FIRST`), status badges (`PASS`, `CUT`), and telemetry counters.
-* **Motion Physics**: Restrained spring simulations and liquid morphing (`SpringSimulation`, `Curves.easeOutBack`). Zero linear animations.
+### 2. Voice Input
+Phone-native speech recognition pipeline with seamless `TYPE` $\longleftrightarrow$ `SPEAK` mode toggling. Dictate ideas on the fly, review and edit transcripts with full user agency, and confirm before submission.
+
+### 3. AI Trimming
+A cinematic 4-phase radar transformation engine that transparently visualizes reasoning states:
+1. `AUDITING_SCOPE` (0–25%)
+2. `EXTRACTING_ESSENCE` (25–50%)
+3. `SEVERING_BLOAT` (50–75%)
+4. `SYNTHESIZING_MVP` (75–100%)
+
+### 4. Verdict
+Delivers a quantitative **MVP Score** (0–100) alongside an unambiguous categorization:
+- **Must Haves (The Core)**: The non-negotiable features essential for core loop validation.
+- **Discarded Bloat (The Noise)**: Features cut from V1, backed by ruthless, unambiguous justifications. Progressive noise disclosure cleanly organizes large cut lists.
+
+### 5. Build First
+A clear, numbered development roadmap (Step 01 through Step N) identifying the exact execution order to reach a working build with zero overlapping dependencies.
+
+### 6. Product Truth
+Uncompromising strategic critique that cuts through founder delusion and answers: *"What is the actual reality of this market and product?"*
+
+### 7. MVP Lock
+A deliberate psychological and functional commitment. Tapping **LOCK MVP** freezes scope, confirms survivor counts, and prevents scope creep. Can be reopened for reconsideration at any time.
+
+### 8. Workspace
+Offline-first personal product memory powered by local Hive document storage. Displays global telemetry (Ideas Trimmed, Features Cut, Scope Removed) and full historical session replay.
+
+### 9. Export & Markdown Handoff
+Generates clean, standardized specifications formatted for direct import into GitHub Issues, Linear, Notion, or Slack.
+
+### 10. Build Desk / Office Kit
+Bridge mobile ideation to desktop execution. One tap packages structured development specifications and transmits them directly to your development machine.
 
 ---
 
-## 🛠️ Architecture & Tech Stack
+## Phone-First Design
 
-| Layer | Technologies Used |
-| :--- | :--- |
-| **Framework** | Flutter 3.47+ / Dart 3.13+ |
-| **Database** | Pure-Dart `Hive` & `Hive Flutter` (fast, structured local document storage) |
-| **Typography** | `google_fonts` (`Manrope`, `JetBrains Mono`) |
-| **Export** | `share_plus` |
-| **AI Inference** | Groq API (`openai/gpt-oss-120b`) with request-scoped cancellation tokens, 60s timeouts, and robust error classification |
+TRIM is engineered from the ground up for mobile hardware:
+- **Tactile Touch Targets**: Generous 48pt+ interactable surfaces calibrated for one-handed thumb use.
+- **Natural Voice Capture**: Dictate raw thoughts while walking or away from your desk.
+- **Physical Spring Motion**: Custom spring simulations (`SpringSimulation`, `Curves.easeOutBack`) that provide weight and tactile presence. Zero linear animations.
+- **High-Refresh Display Polish**: Designed and tested for smooth interaction on high-refresh Android devices (120Hz/144Hz).
+- **Pure OLED Dark Mode**: Deep `#000000` canvas with subtle `#0D0D11` glass cards, minimizing battery consumption and eye strain.
+- **Device-Local Privacy**: All session history remains on your device.
 
 ---
 
-## 🚀 Getting Started
+## AI Architecture
 
-### Prerequisites
-* [Flutter SDK](https://flutter.dev/docs/get-started/install) (version $\ge 3.13.0$)
-* Android Studio / Xcode / VS Code
-* A free [Groq API Key](https://console.groq.com/)
+TRIM employs a secure, low-latency, proxy-based architecture:
 
-### Installation
+```
+Flutter Client (Web / Android)
+        │
+        ▼ (Single-Flight HTTPS)
+Vercel Serverless Function (/api/trim)
+        │
+        ▼ (Server-Side GROQ_API_KEY)
+Groq LPU Cloud (openai/gpt-oss-120b)
+```
 
-1. **Clone the repository:**
+- **Server-Side Key Isolation**: The client application contains **zero Groq API keys**. All credentials reside securely in server-side environment variables (`GROQ_API_KEY`).
+- **Single-Flight Request Protection**: Concurrent or rapid repeated taps automatically coalesce into the active in-flight request, preventing duplicate backend calls.
+- **Strict Output Grammar**: Enforces an exact JSON schema containing structured MVP components.
+
+---
+
+## Security
+
+- **Zero Client-Side Secrets**: Release APKs and web bundles contain no API keys, private tokens, or Bearer authorization headers.
+- **No Direct Groq Endpoints**: The client communicates exclusively with `/api/trim`.
+- **Local Data Isolation**: Historical triage sessions are stored entirely in local on-device Hive storage. No ideas are transmitted to third-party databases.
+
+---
+
+## Office Kit / Build Desk
+
+TRIM connects the phone (planning surface) to the laptop (execution surface).
+
+Tapping **SEND TO BUILD DESK** compiles and packages four dedicated markdown artifacts into `TRIMMED_MVP/`:
+1. `MVP_SPEC.md` — Complete system overview, MVP score, core architecture, and surviving features.
+2. `BUILD_ORDER.md` — Sequential step-by-step engineering checklist.
+3. `CUT_FEATURES.md` — Discarded features log with explicit rationale.
+4. `PRODUCT_TRUTH.md` — Harsh market reality check and strategic guidance.
+
+Files are dispatched via OriginOS 6 PC Link / EasyShare, Bluetooth, system share targets, and clipboard synchronization.
+
+---
+
+## On-Device AI Feasibility
+
+During the v1.0.0 engineering cycle, on-device AI was evaluated in depth:
+- **Android AICore / Gemini Nano**: Currently restricted to Google Pixel and select Samsung devices; not exposed to third-party runtimes on OriginOS 6.
+- **Local Qualcomm NPU Runmodels**: Requires packaging 900MB–2GB quantized model weights, introducing heavy cold-start latency and reduced reasoning fidelity.
+- **Conclusion**: v1.0.0 uses the high-speed serverless Groq LPU proxy for sub-second, zero-footprint inference with 100% security. On-device local models remain deferred until native OS LLM APIs achieve vendor-wide standardization.
+
+---
+
+## Performance & Quality
+
+- **High-Refresh Interaction**: Designed and tested for smooth interaction on high-refresh Android devices.
+- **Binary Footprint**: Optimized split APK (`arm64-v8a`) is only **18.0 MB**.
+- **Automated Verification**: **109 of 109 automated tests passing** across unit, widget, and integration test suites.
+- **Static Analysis**: **0 issues found** via `flutter analyze`.
+
+---
+
+## Tech Stack
+
+- **Client Framework**: Flutter (Channel stable, Dart 3)
+- **Local Storage**: Hive & Hive Flutter (pure Dart document database)
+- **Design & Typography**: Custom Glassmorphism, Google Fonts (`Manrope`, `JetBrains Mono`)
+- **Backend Function**: Vercel Serverless Node.js Runtime (`api/trim.js`)
+- **LLM Engine**: Groq Cloud LPU (`openai/gpt-oss-120b`)
+- **Cross-Device Handoff**: `share_plus` & native Android intent dispatchers
+- **Speech Recognition**: Mobile speech-to-text pipeline
+
+---
+
+## Android Releases
+
+Pre-compiled release packages are available in `build/releases/`:
+
+| Binary | Size | Target Architecture |
+| :--- | :--- | :--- |
+| **`TRIM-arm64-v8a-release.apk`** | **18.0 MB** | **64-bit ARM (iQOO 15 / Snapdragon 8 Elite Gen 5)** |
+| `TRIM-release.apk` | 50.5 MB | Universal Android Release |
+| `TRIM-release.aab` | 49.6 MB | Google Play Store App Bundle |
+| `TRIM-armeabi-v7a-release.apk` | 15.5 MB | 32-bit Legacy ARM |
+| `TRIM-x86_64-release.apk` | 19.3 MB | 64-bit Emulators / ChromeOS |
+
+---
+
+## Installation & Setup
+
+### Installing on Android
+1. Download `TRIM-arm64-v8a-release.apk` (or universal `TRIM-release.apk`) from [Releases](https://github.com/LuxShar007/Trim/releases).
+2. Install the APK on your Android device (ensure "Install unknown apps" permission is granted).
+3. Launch **TRIM** and start trimming product ideas immediately. No API key setup required!
+
+### Local Development Setup
+1. Clone the repository:
    ```bash
    git clone https://github.com/LuxShar007/Trim.git
    cd Trim
    ```
-
-2. **Install dependencies:**
+2. Install dependencies:
    ```bash
    flutter pub get
    ```
+3. Run code analysis & tests:
+   ```bash
+   flutter analyze
+   flutter test --platform=tester
+   ```
+4. Launch the application:
+   ```bash
+   flutter run
+   ```
 
-3. **Run the application:**
-   * **Chrome (Web):**
-     ```bash
-     flutter run -d chrome
-     ```
-   * **Android / iOS:**
-     ```bash
-     flutter run
-     ```
-
-4. **Add your Groq API Key:**
-   * In the app, **long-press the Trim wordmark** on the top left of the Brain Dump screen to open the secure API Key modal.
-   * Paste your Groq API key (stored securely and solely on your local device).
-
----
-
-## 🧪 Testing & Verification
-
-TRIM is covered by an automated test suite verifying serialization, database persistence, interaction flows, and request lifecycles:
-
-```bash
-# Run code analysis
-flutter analyze
-
-# Run all test suites
-flutter test
-```
-
-### Key Test Suites:
-* `test/trim_session_test.dart`: Serialization, deserialization, and Section 24 Markdown formatting.
-* `test/trim_session_repository_test.dart`: Local Hive CRUD, reverse-chronological sorting, and dynamic telemetry calculations.
-* `test/trim_workspace_flow_test.dart`: Workspace empty/populated views, progressive noise disclosure, and Lock/Reopen MVP interactions.
-* `test/trim_request_lifecycle_test.dart`: 60s timeout handling, cancellation tokens, distinct error headers, and 10 consecutive triage executions.
+### Vercel Function Development
+For running the local serverless proxy:
+1. Ensure Node.js 18+ is installed.
+2. In `.env.local` (kept local, never committed), configure:
+   ```env
+   GROQ_API_KEY=your_groq_api_key_here
+   ```
+3. Launch Vercel local dev server:
+   ```bash
+   npx vercel dev
+   ```
 
 ---
 
-## 📄 License
+## Product Preview
 
-Distributed under the MIT License. See `LICENSE` for more information.
+<!-- TODO: Add final screenshot and demonstration recording embeds here -->
+*A product walkthrough video and high-resolution screenshots will be linked here.*
+
+---
+
+## License
+
+Distributed under the MIT License. See [LICENSE](LICENSE) for full details.
