@@ -1,9 +1,13 @@
-# TRIM — Final Hackathon QA & Verification Report
+# TRIM — Pre-Event Screening Prototype QA & Verification Report
 
-**Release Target**: TRIM v1.0.0  
+**Release Target**: TRIM v1.0.0 (Pre-Event Screening Prototype)  
 **Device Target**: iQOO 15 (Snapdragon 8 Elite Gen 5, OriginOS 6 / Android 16)  
 **Date**: September 16, 2026  
-**Status**: **FREEZE APPROVED**
+**Status**: **SCREENING PROTOTYPE FROZEN**
+
+> [!IMPORTANT]
+> **SCREENING PROTOTYPE VALIDATION NOTICE**  
+> This QA report validates the pre-event screening prototype. It must not be interpreted as the event-window competition submission. The City Battle implementation will be created during the official event window in accordance with hackathon original-work rules.
 
 ---
 
@@ -155,8 +159,9 @@ Built with `flutter build apk --split-per-abi --release`:
 
 ## J. Final Freeze Recommendation
 
-### **STATUS: FREEZE APPROVED**
+### **STATUS: SCREENING PROTOTYPE FROZEN**
 
 TRIM v1.0.0 is thoroughly verified, functionally robust, visually cohesive, and adversarial-tested. Zero client secrets are exposed, and all 119 automated regression tests pass without flaw.
 
-The codebase is fully ready for hackathon presentation and final evaluation.
+This QA report validates the pre-event screening prototype. It demonstrates our product concept, mobile-first design, and technical capability for idea screening. In strict accordance with the iQOO Hackathon 2026 rules, this is not the final event-window submission; the official City Battle implementation will be built during the designated 30-hour event window.
+

@@ -1,6 +1,4 @@
-# TRIM
-
-> TRIM is a phone-first AI Product Manager that turns bloated product ideas into focused, locked MVPs.
+# TRIM — AI Product-to-Build Copilot
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/LuxShar007/Trim/main/web/icons/Icon-192.png" width="84" height="84" alt="Trim Logo" />
@@ -10,19 +8,62 @@
   <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.47+-02569B?logo=flutter&logoColor=white" alt="Flutter" /></a>
   <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.13+-0175C2?logo=dart&logoColor=white" alt="Dart" /></a>
   <img src="https://img.shields.io/badge/Platforms-Android%20%7C%20Web-black" alt="Platforms" />
+  <img src="https://img.shields.io/badge/Stage-Screening%20Prototype-orange" alt="Stage" />
   <img src="https://img.shields.io/badge/Tests-119%20Passing-10B981" alt="Tests" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-emerald" alt="License" /></a>
 </p>
 
 ---
 
+## SCREENING-STAGE PROTOTYPE
+
+> **Pre-Event Technical Proof of Concept**  
+> This repository contains our working pre-event prototype for the iQOO Hackathon 2026 Developer Tools track.
+>
+> TRIM turns unstructured product ideas into focused MVP specifications, scope decisions, product truth, build order, and structured development handoffs.
+>
+> This prototype demonstrates our product concept and technical capability for idea screening.
+>
+> The official City Battle implementation will be developed during the permitted event window in accordance with the hackathon’s original-work rules.
+
+---
+
 ## What is TRIM?
 
-TRIM transforms chaotic, over-engineered feature wishlists into razor-sharp, buildable MVPs in seconds.
+**TRIM is an AI Product-to-Build Copilot that turns chaotic product intent into a focused, buildable MVP before development begins.**
 
-Instead of bloated dashboards and endless user stories, TRIM establishes a strict, non-negotiable triage pipeline:
+```
+Human Idea
+    │
+    ▼
+Context Understanding
+    │
+    ▼
+Feature Extraction
+    │
+    ▼
+Scope Reduction
+    │
+    ▼
+MVP Lock
+    │
+    ▼
+Build Handoff
+```
 
-$$\text{CHAOS} \longrightarrow \text{AI ANALYSIS} \longrightarrow \text{CORE VALUE} \longrightarrow \text{MUST-HAVES} \longrightarrow \text{DISCARDED BLOAT} \longrightarrow \text{BUILD FIRST} \longrightarrow \text{PRODUCT TRUTH} \longrightarrow \text{SCOPE REDUCTION} \longrightarrow \text{MVP LOCK} \longrightarrow \text{BUILD DESK}$$
+Instead of jumping blindly into coding with bloated feature wishlists, TRIM establishes a strict, non-negotiable triage pipeline:
+
+$$\text{CHAOS} \longrightarrow \text{CONTEXT UNDERSTANDING} \longrightarrow \text{FEATURE EXTRACTION} \longrightarrow \text{SCOPE REDUCTION} \longrightarrow \text{PRODUCT TRUTH} \longrightarrow \text{MVP LOCK} \longrightarrow \text{BUILD HANDOFF}$$
+
+---
+
+## Where TRIM Sits: The Missing Layer Before AI Coding Agents
+
+In the modern developer ecosystem, AI coding tools (**Antigravity, Claude Code, Cursor, Copilot Workspace, Devin**) can write software at unprecedented speeds. However, their output is only as good as the prompt and scope they receive:
+
+- **Garbage In, Garbage Out**: Feeding a coding agent an unvetted, 15-feature "super-app" idea results in bloated codebases, architectural chaos, context window exhaustion, and half-baked implementations.
+- **The Upstream Filter**: **TRIM operates directly *before* AI coding agents.** It acts as the upstream triage surface that forces builders to isolate the single core value proposition, severs premature bloat, sequences the strict build order, and locks the MVP scope.
+- **Precision Handoff**: TRIM outputs structured development handoffs (`MVP_SPEC.md`, `BUILD_ORDER.md`, `CUT_FEATURES.md`, `PRODUCT_TRUTH.md`) tailored for coding agents and engineers to execute with laser focus.
 
 ---
 
@@ -34,7 +75,7 @@ Feature creep kills velocity, dilutes core value, confuses early users, and burn
 
 ---
 
-## Core Experience
+## Core Experience (Screening Prototype)
 
 ### 1. Brain Dump
 An edge-to-edge, distraction-free mobile canvas designed for rapid thought capture. Features live character telemetry, instant sample prompt insertion, and robust input validation.
@@ -42,7 +83,7 @@ An edge-to-edge, distraction-free mobile canvas designed for rapid thought captu
 ### 2. Voice Input
 Phone-native speech recognition pipeline with seamless `TYPE` $\longleftrightarrow$ `SPEAK` mode toggling. Dictate ideas on the fly, review and edit transcripts with full user agency, and confirm before submission.
 
-### 3. AI Trimming
+### 3. AI Trimming & Scope Collapse
 A cinematic 4-phase radar transformation engine that transparently visualizes reasoning states:
 1. `AUDITING_SCOPE` (0–25%)
 2. `EXTRACTING_ESSENCE` (25–50%)
@@ -81,7 +122,7 @@ TRIM is engineered from the ground up for mobile hardware:
 - **Natural Voice Capture**: Dictate raw thoughts while walking or away from your desk.
 - **Physical Spring Motion**: Custom spring simulations (`SpringSimulation`, `Curves.easeOutBack`) that provide weight and tactile presence. Zero linear animations.
 - **High-Refresh Display Polish**: Designed and tested for smooth interaction on high-refresh Android devices (120Hz/144Hz).
-- **Pure OLED Dark Mode**: Deep `#000000` canvas with subtle `#0D0D11` glass cards, minimizing battery consumption and eye strain.
+- **Pure OLED Dark Mode**: Deep `#050508` canvas with subtle `#0D0D14` cards, minimizing battery consumption and eye strain.
 - **Device-Local Privacy**: All session history remains on your device.
 
 ---
@@ -128,12 +169,12 @@ Files are dispatched via OriginOS 6 PC Link / EasyShare, Bluetooth, system share
 
 ---
 
-## On-Device AI Feasibility
+## On-Device AI Feasibility Analysis
 
-During the v1.0.0 engineering cycle, on-device AI was evaluated in depth:
+During the pre-event prototype development cycle, on-device AI feasibility was thoroughly researched:
 - **Android AICore / Gemini Nano**: Currently restricted to Google Pixel and select Samsung devices; not exposed to third-party runtimes on OriginOS 6.
 - **Local Qualcomm NPU Runmodels**: Requires packaging 900MB–2GB quantized model weights, introducing heavy cold-start latency and reduced reasoning fidelity.
-- **Conclusion**: v1.0.0 uses the high-speed serverless Groq LPU proxy for sub-second, zero-footprint inference with 100% security. On-device local models remain deferred until native OS LLM APIs achieve vendor-wide standardization.
+- **Screening Prototype Architecture**: Uses the high-speed serverless Groq LPU proxy for sub-second, zero-footprint inference with 100% credential security. On-device local models remain deferred until native OS LLM APIs achieve vendor-wide standardization.
 
 ---
 
@@ -158,26 +199,25 @@ During the v1.0.0 engineering cycle, on-device AI was evaluated in depth:
 
 ---
 
-## Android Releases
+## Pre-Event Screening Prototype Releases (v1.0.0)
 
-Pre-compiled release packages are available in `build/releases/`:
+Pre-compiled screening prototype packages are available in `build/releases/` and GitHub Releases:
 
-| Binary | Size | Target Architecture |
-| :--- | :--- | :--- |
-| **`TRIM-arm64-v8a-release.apk`** | **18.0 MB** | **64-bit ARM (iQOO 15 / Snapdragon 8 Elite Gen 5)** |
-| `TRIM-release.apk` | 50.5 MB | Universal Android Release |
-| `TRIM-release.aab` | 49.6 MB | Google Play Store App Bundle |
-| `TRIM-armeabi-v7a-release.apk` | 15.5 MB | 32-bit Legacy ARM |
-| `TRIM-x86_64-release.apk` | 19.3 MB | 64-bit Emulators / ChromeOS |
+| Binary | Size | Target Architecture | Description |
+| :--- | :--- | :--- | :--- |
+| **`app-arm64-v8a-release.apk`** | **18.0 MB** | **64-bit ARM (iQOO 15 / Snapdragon 8 Elite)** | Primary prototype test build |
+| `app-armeabi-v7a-release.apk` | 15.5 MB | 32-bit Legacy ARM | Backward-compatibility build |
+| `app-x86_64-release.apk` | 19.4 MB | 64-bit Emulators / ChromeOS | Emulator testing build |
+| `TRIM-release.apk` | 50.5 MB | Universal Android Package | Combined all-architecture build |
 
 ---
 
 ## Installation & Setup
 
-### Installing on Android
-1. Download `TRIM-arm64-v8a-release.apk` (or universal `TRIM-release.apk`) from [Releases](https://github.com/LuxShar007/Trim/releases).
+### Installing the Screening Prototype on Android
+1. Download `app-arm64-v8a-release.apk` (or universal `TRIM-release.apk`) from [Releases](https://github.com/LuxShar007/Trim/releases).
 2. Install the APK on your Android device (ensure "Install unknown apps" permission is granted).
-3. Launch **TRIM** and start trimming product ideas immediately. No API key setup required!
+3. Launch **TRIM** and test the triage flow. No API key setup required!
 
 ### Local Development Setup
 1. Clone the repository:
@@ -213,10 +253,20 @@ For running the local serverless proxy:
 
 ---
 
-## Product Preview
+## Team & Pre-Event Collaboration
 
-<!-- TODO: Add final screenshot and demonstration recording embeds here -->
-*A product walkthrough video and high-resolution screenshots will be linked here.*
+TRIM was conceptualized and developed collaboratively prior to the event as a working screening prototype to demonstrate technical capability and feasibility for the **iQOO Hackathon 2026 Developer Tools track**:
+
+- **Product Concept & Mobile Architecture**: Mobile UI design, Flutter client implementation, tactile interactions, and on-device storage.
+- **AI Systems & Backend Engineering**: LPU prompt engineering, JSON schema enforcement, serverless proxy routing, and automated validation harness.
+- **Hackathon Alignment**: In strict accordance with the hackathon's original-work rules, this repository serves solely as our pre-event proof of concept for screening evaluation. The official City Battle implementation will be built from scratch during the designated 30-hour event window.
+
+---
+
+## Suggested GitHub Repository Metadata
+
+- **Description**: `AI Product-to-Build Copilot — a screening-stage prototype that turns chaotic product ideas into focused MVPs and development handoffs.`
+- **Topics**: `flutter`, `android`, `ai`, `llm`, `developer-tools`, `product-management`, `mvp`, `generative-ai`, `voice-ai`, `iqoo-hackathon`
 
 ---
 
