@@ -64,19 +64,34 @@ class _TrimmingScreenState extends State<TrimmingScreen>
 
   late final AnimationController _motionController;
 
-  // Contextual feature fragments extracted from user's idea
-  late final List<String> _coreFragments;
-  late final List<String> _noiseFragments;
+  // Contextual feature fragments extracted from user's idea or actual TrimResult
+  List<String> _coreFragments = [];
+  List<String> _noiseFragments = [];
+  int _totalFeatureCount = 0;
+  int _survivorCount = 0;
+  int _cutCount = 0;
+
+  // Precomputed outward directions for noise fragments during collapse
+  static const List<Offset> _noiseOutwardDirections = [
+    Offset(-1.2, -0.6),
+    Offset(1.2, -0.5),
+    Offset(-1.1, 0.7),
+    Offset(1.1, 0.8),
+    Offset(0.0, -1.2),
+    Offset(-1.3, 0.0),
+    Offset(1.3, 0.1),
+    Offset(0.0, 1.2),
+  ];
 
   @override
   void initState() {
     super.initState();
     _trimEngine = widget.engine ?? TrimEngine();
 
-    // Spring motion controller for physical feature transitions
+    // Spring motion controller for physical Scope Collapse feature transitions
     _motionController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 600),
+      duration: const Duration(milliseconds: 650),
     );
 
     _prepareFragments();
@@ -85,11 +100,11 @@ class _TrimmingScreenState extends State<TrimmingScreen>
   }
 
   void _prepareFragments() {
-    // Extract keywords from raw idea for contextual realism
+    // Extract candidate keywords from raw idea for contextual realism
     final words = widget.rawIdea
         .split(RegExp(r'[,.\s]+'))
         .where((w) => w.length > 3)
-        .take(6)
+        .take(8)
         .toList();
 
     if (words.length >= 4) {
@@ -101,6 +116,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
         words.length > 2 ? words[2] : 'Avatar Feed',
         words.length > 3 ? words[3] : 'Token Rewards',
         words.length > 4 ? words[4] : 'Social Layer',
+        if (words.length > 5) words[5],
       ];
     } else {
       _coreFragments = [
@@ -113,13 +129,25 @@ class _TrimmingScreenState extends State<TrimmingScreen>
         'Social sharing feed',
       ];
     }
+    _totalFeatureCount = _coreFragments.length + _noiseFragments.length;
+    _survivorCount = _coreFragments.length;
+    _cutCount = _noiseFragments.length;
+  }
+
+  void _applyRealResult(TrimResult result) {
+    _result = result;
+    _coreFragments = result.mustHaves.map((m) => m.feature).toList();
+    _noiseFragments = result.discardedBloat.map((b) => b.feature).toList();
+    _totalFeatureCount = _coreFragments.length + _noiseFragments.length;
+    _survivorCount = _coreFragments.length;
+    _cutCount = _noiseFragments.length;
   }
 
   void _startStageTimeline() {
     _cancelTimers();
 
-    // Stage 1 -> 2: UNDERSTANDING -> FEATURE EXTRACTION (800ms)
-    _stageTimer1 = Timer(const Duration(milliseconds: 800), () {
+    // Stage 1 -> 2: UNDERSTANDING -> FEATURES EMERGE (750ms)
+    _stageTimer1 = Timer(const Duration(milliseconds: 750), () {
       if (mounted && _stage == ProcessingStage.understanding) {
         setState(() {
           _stage = ProcessingStage.featureExtraction;
@@ -129,8 +157,8 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       }
     });
 
-    // Stage 2 -> 3: FEATURE EXTRACTION -> TRIMMING (1700ms)
-    _stageTimer2 = Timer(const Duration(milliseconds: 1700), () {
+    // Stage 2 -> 3: FEATURES EMERGE -> CORE/NOISE SEPARATION (1650ms)
+    _stageTimer2 = Timer(const Duration(milliseconds: 1650), () {
       if (mounted && _stage == ProcessingStage.featureExtraction) {
         setState(() {
           _stage = ProcessingStage.trimming;
@@ -140,8 +168,8 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       }
     });
 
-    // Stage 3 -> 4: TRIMMING -> CONSOLIDATING (2600ms)
-    _stageTimer3 = Timer(const Duration(milliseconds: 2600), () {
+    // Stage 3 -> 4: CORE/NOISE SEPARATION -> SCOPE COLLAPSE (2550ms)
+    _stageTimer3 = Timer(const Duration(milliseconds: 2550), () {
       if (mounted && _stage == ProcessingStage.trimming) {
         setState(() {
           _stage = ProcessingStage.consolidating;
@@ -151,8 +179,8 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       }
     });
 
-    // Stage 4 -> 5: CONSOLIDATING -> LOCKING (3500ms)
-    _stageTimer4 = Timer(const Duration(milliseconds: 3500), () {
+    // Stage 4 -> 5: SCOPE COLLAPSE -> MVP LOCKED (3450ms)
+    _stageTimer4 = Timer(const Duration(milliseconds: 3450), () {
       if (mounted && _stage == ProcessingStage.consolidating) {
         setState(() {
           _stage = ProcessingStage.locking;
@@ -286,23 +314,27 @@ class _TrimmingScreenState extends State<TrimmingScreen>
     _cancelTimers();
     if (!mounted || _activeCancelToken?.isCancelled == true) return;
 
+    _applyRealResult(result);
+
     if (_stage == ProcessingStage.understanding) {
       setState(() => _stage = ProcessingStage.featureExtraction);
       _motionController.forward(from: 0.0);
-      await Future.delayed(const Duration(milliseconds: 120));
+      await Future.delayed(const Duration(milliseconds: 80));
       if (!mounted || _activeCancelToken?.isCancelled == true) return;
     }
 
     if (_stage == ProcessingStage.featureExtraction) {
       setState(() => _stage = ProcessingStage.trimming);
       _motionController.forward(from: 0.0);
-      await Future.delayed(const Duration(milliseconds: 120));
+      HapticsUtil.lightClick();
+      await Future.delayed(const Duration(milliseconds: 80));
       if (!mounted || _activeCancelToken?.isCancelled == true) return;
     }
 
     if (_stage == ProcessingStage.trimming) {
       setState(() => _stage = ProcessingStage.consolidating);
       _motionController.forward(from: 0.0);
+      HapticsUtil.lightClick();
       await Future.delayed(const Duration(milliseconds: 120));
       if (!mounted || _activeCancelToken?.isCancelled == true) return;
     }
@@ -311,7 +343,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       setState(() => _stage = ProcessingStage.locking);
       _motionController.forward(from: 0.0);
       HapticsUtil.mediumImpact();
-      await Future.delayed(const Duration(milliseconds: 120));
+      await Future.delayed(const Duration(milliseconds: 100));
       if (!mounted || _activeCancelToken?.isCancelled == true) return;
     }
 
@@ -321,6 +353,8 @@ class _TrimmingScreenState extends State<TrimmingScreen>
   void _revealVerdictAndNavigate(TrimResult result) async {
     if (!mounted) return;
 
+    _applyRealResult(result);
+
     setState(() {
       _stage = ProcessingStage.verdictReady;
       _apiState = TrimApiState.success;
@@ -329,7 +363,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
     HapticsUtil.mediumImpact();
 
     // Intentional physical settle before navigating into Results
-    await Future.delayed(const Duration(milliseconds: 650));
+    await Future.delayed(const Duration(milliseconds: 280));
     if (!mounted || _activeCancelToken?.isCancelled == true) {
       return;
     }
@@ -338,7 +372,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
             TrimResultsScreen(result: result),
-        transitionDuration: const Duration(milliseconds: 450),
+        transitionDuration: const Duration(milliseconds: 400),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           final springAnim = CurvedAnimation(
             parent: animation,
@@ -363,15 +397,20 @@ class _TrimmingScreenState extends State<TrimmingScreen>
       body: SafeArea(
         top: true,
         bottom: true,
-        child: Align(
-          alignment: Alignment.center,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 440),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0),
-              child: _apiState == TrimApiState.error
-                  ? _buildErrorState()
-                  : _buildProcessingState(),
+        child: Center(
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            child: Align(
+              alignment: Alignment.center,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 440),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+                  child: _apiState == TrimApiState.error
+                      ? _buildErrorState()
+                      : _buildProcessingState(),
+                ),
+              ),
             ),
           ),
         ),
@@ -386,22 +425,19 @@ class _TrimmingScreenState extends State<TrimmingScreen>
         stageLabel = 'UNDERSTANDING';
         break;
       case ProcessingStage.featureExtraction:
-        stageLabel = 'FEATURE EXTRACTION';
+        stageLabel = 'FEATURES EMERGE';
         break;
       case ProcessingStage.trimming:
-        stageLabel = 'TRIMMING';
+        stageLabel = 'CORE / NOISE SEPARATION';
         break;
       case ProcessingStage.consolidating:
-        stageLabel = 'CONSOLIDATING';
+        stageLabel = 'SCOPE COLLAPSE';
         break;
       case ProcessingStage.locking:
-        stageLabel = 'LOCKING';
+        stageLabel = 'MVP LOCKED';
         break;
       case ProcessingStage.verdictReady:
-        final total = (_result?.mustHaves.length ?? 0) +
-            (_result?.discardedBloat.length ?? 0);
-        final survivors = _result?.mustHaves.length ?? 0;
-        stageLabel = '$total → $survivors SURVIVE';
+        stageLabel = '$_totalFeatureCount → $_survivorCount SURVIVE';
         break;
     }
 
@@ -451,7 +487,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
             ],
           ),
         ),
-        const SizedBox(height: 32),
+        const SizedBox(height: 24),
 
         // Animated Stage Title (Editorial, clean, spring transition)
         AnimatedSwitcher(
@@ -484,7 +520,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
             ),
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 20),
 
         // Intelligent Physical Reduction Surface
         AnimatedContainer(
@@ -592,21 +628,45 @@ class _TrimmingScreenState extends State<TrimmingScreen>
           mainAxisSize: MainAxisSize.min,
           children: [
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.orange,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      'FEATURES EMERGE',
+                      style: AppTypography.monoLabel.copyWith(
+                        fontSize: 9.5,
+                        color: AppColors.orange,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 7),
-                Text(
-                  'CANDIDATE EXTRACTION',
-                  style: AppTypography.monoLabel.copyWith(
-                    fontSize: 9.5,
-                    color: AppColors.orange,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 2.5),
+                  decoration: BoxDecoration(
+                    color: AppColors.orange.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6.0),
+                    border: Border.all(
+                      color: AppColors.orange.withValues(alpha: 0.35),
+                      width: 0.8,
+                    ),
+                  ),
+                  child: Text(
+                    '$_totalFeatureCount FEATURES',
+                    style: AppTypography.monoChip.copyWith(
+                      fontSize: 9.0,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.orange,
+                    ),
                   ),
                 ),
               ],
@@ -631,20 +691,32 @@ class _TrimmingScreenState extends State<TrimmingScreen>
           children: [
             // Core survivor candidate row
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.emerald,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.emerald,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      'CORE CANDIDATES ($_survivorCount)',
+                      style: AppTypography.monoLabel.copyWith(
+                        fontSize: 9.5,
+                        color: AppColors.emerald,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 7),
                 Text(
-                  'CORE CANDIDATES',
-                  style: AppTypography.monoLabel.copyWith(
-                    fontSize: 9.5,
+                  'ESSENTIAL',
+                  style: AppTypography.monoChip.copyWith(
+                    fontSize: 8.5,
                     color: AppColors.emerald,
                   ),
                 ),
@@ -655,6 +727,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
               spacing: 7.0,
               runSpacing: 7.0,
               children: _coreFragments
+                  .take(4)
                   .map((f) => _buildFragmentChip(f, isCore: true, isSeparated: true))
                   .toList(),
             ),
@@ -662,21 +735,33 @@ class _TrimmingScreenState extends State<TrimmingScreen>
 
             // Noise candidate row
             Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.cutRed,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 5,
+                      height: 5,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: AppColors.cutRed,
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Text(
+                      'NOISE CANDIDATES ($_cutCount)',
+                      style: AppTypography.monoLabel.copyWith(
+                        fontSize: 9.5,
+                        color: const Color(0xFF71717A),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 7),
                 Text(
-                  'NOISE CANDIDATES',
-                  style: AppTypography.monoLabel.copyWith(
-                    fontSize: 9.5,
-                    color: const Color(0xFF71717A),
+                  'BLOAT',
+                  style: AppTypography.monoChip.copyWith(
+                    fontSize: 8.5,
+                    color: AppColors.cutRed,
                   ),
                 ),
               ],
@@ -686,6 +771,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
               spacing: 7.0,
               runSpacing: 7.0,
               children: _noiseFragments
+                  .take(4)
                   .map((f) => _buildFragmentChip(f, isCore: false, isSeparated: true))
                   .toList(),
             ),
@@ -693,96 +779,166 @@ class _TrimmingScreenState extends State<TrimmingScreen>
         );
 
       case ProcessingStage.consolidating:
-        return Column(
+        // THE SCOPE COLLAPSE:
+        // Noise fragments push outward, compress, fade and disappear.
+        // Core fragments move inward toward central focal point.
+        return AnimatedBuilder(
           key: const ValueKey('stage_consolidating'),
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Core consolidating path
-            Row(
+          animation: _motionController,
+          builder: (context, child) {
+            final double progress = Curves.easeInOutCubic.transform(_motionController.value);
+            final double noiseScale = (1.0 - progress * 0.85).clamp(0.01, 1.0);
+            final double noiseOpacity = (1.0 - progress * 1.3).clamp(0.0, 1.0);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 5,
-                  height: 5,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.emerald,
-                  ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  'CONSOLIDATING CORE VALUE',
-                  style: AppTypography.monoLabel.copyWith(
-                    fontSize: 9.5,
-                    color: AppColors.emerald,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ..._coreFragments.map((f) {
-              return Container(
-                margin: const EdgeInsets.symmetric(vertical: 3.0),
-                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0D1712),
-                  borderRadius: BorderRadius.circular(8.0),
-                  border: Border.all(
-                    color: AppColors.emerald.withValues(alpha: 0.35),
-                    width: 0.9,
-                  ),
-                ),
-                child: Row(
+                // Signature Metric Badge: TOTAL -> SURVIVORS SURVIVE
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(Icons.check_rounded, size: 12, color: AppColors.emerald),
-                    const SizedBox(width: 8),
-                    Text(
-                      f,
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontSize: 12.0,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFFE2E8F0),
+                    Row(
+                      children: [
+                        Container(
+                          width: 5,
+                          height: 5,
+                          decoration: const BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.emerald,
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          'THE SCOPE COLLAPSE',
+                          style: AppTypography.monoLabel.copyWith(
+                            fontSize: 9.5,
+                            letterSpacing: 1.1,
+                            color: AppColors.emerald,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: AppColors.emerald.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6.0),
+                        border: Border.all(
+                          color: AppColors.emerald.withValues(alpha: 0.4),
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        '$_totalFeatureCount → $_survivorCount SURVIVE',
+                        style: AppTypography.monoChip.copyWith(
+                          fontSize: 9.0,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.emerald,
+                        ),
                       ),
                     ),
                   ],
                 ),
-              );
-            }),
-            const SizedBox(height: 12),
+                const SizedBox(height: 12),
 
-            // Noise compressed row (subtly fading away)
-            Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 4,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFF52525B),
+                // Converging Core Survivors (inward translation toward center)
+                ..._coreFragments.take(3).map((f) {
+                  return Transform.scale(
+                    scale: 0.96 + (0.04 * progress),
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 3.0),
+                      padding: const EdgeInsets.symmetric(horizontal: 11.0, vertical: 7.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D1712),
+                        borderRadius: BorderRadius.circular(8.0),
+                        border: Border.all(
+                          color: AppColors.emerald.withValues(alpha: 0.35 + (0.2 * progress)),
+                          width: 0.9,
+                        ),
+                        boxShadow: [
+                          if (progress > 0.4)
+                            BoxShadow(
+                              color: AppColors.emerald.withValues(alpha: 0.08 * progress),
+                              blurRadius: 10.0,
+                            ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.check_rounded, size: 12, color: AppColors.emerald),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              f,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTypography.bodyMedium.copyWith(
+                                fontSize: 12.0,
+                                fontWeight: FontWeight.w500,
+                                color: const Color(0xFFE2E8F0),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+                const SizedBox(height: 12),
+
+                // Collapsing Noise Fragments: pushed outward, compress & fade
+                if (noiseOpacity > 0.01) ...[
+                  Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 4,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Color(0xFF52525B),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Text(
+                        'DISCARDED NOISE (COLLAPSING OUTWARD)',
+                        style: AppTypography.monoLabel.copyWith(
+                          fontSize: 9.0,
+                          color: const Color(0xFF71717A),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 7),
-                Text(
-                  'DISCARDED NOISE (COMPRESSING)',
-                  style: AppTypography.monoLabel.copyWith(
-                    fontSize: 9.0,
-                    color: const Color(0xFF52525B),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6.0,
+                    runSpacing: 6.0,
+                    children: List.generate(
+                      _noiseFragments.take(4).length,
+                      (i) {
+                        final dir = _noiseOutwardDirections[i % _noiseOutwardDirections.length];
+                        final offset = Offset(dir.dx * progress * 50.0, dir.dy * progress * 30.0);
+                        return Transform.translate(
+                          offset: offset,
+                          child: Transform.scale(
+                            scale: noiseScale,
+                            child: Opacity(
+                              opacity: noiseOpacity,
+                              child: _buildFragmentChip(
+                                _noiseFragments[i],
+                                isCore: false,
+                                isCompressed: true,
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
+                ],
               ],
-            ),
-            const SizedBox(height: 8),
-            Opacity(
-              opacity: 0.35,
-              child: Wrap(
-                spacing: 6.0,
-                runSpacing: 6.0,
-                children: _noiseFragments
-                    .map((f) => _buildFragmentChip(f, isCore: false, isCompressed: true))
-                    .toList(),
-              ),
-            ),
-          ],
+            );
+          },
         );
 
       case ProcessingStage.locking:
@@ -806,7 +962,7 @@ class _TrimmingScreenState extends State<TrimmingScreen>
                     Text(
                       _stage == ProcessingStage.verdictReady
                           ? 'MVP LOCKED'
-                          : 'LOCKING SPECIFICATION...',
+                          : 'LOCKING MVP SCOPE...',
                       style: AppTypography.monoLabel.copyWith(
                         fontSize: 9.5,
                         letterSpacing: 0.8,
@@ -815,29 +971,29 @@ class _TrimmingScreenState extends State<TrimmingScreen>
                     ),
                   ],
                 ),
-                if (_stage == ProcessingStage.verdictReady)
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 3.0),
-                    decoration: BoxDecoration(
-                      color: AppColors.emerald.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6.0),
-                      border: Border.all(
-                        color: AppColors.emerald.withValues(alpha: 0.4),
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Text(
-                      'READY',
-                      style: AppTypography.monoChip.copyWith(
-                        fontSize: 9.0,
-                        color: AppColors.emerald,
-                      ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7.0, vertical: 3.0),
+                  decoration: BoxDecoration(
+                    color: AppColors.emerald.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6.0),
+                    border: Border.all(
+                      color: AppColors.emerald.withValues(alpha: 0.4),
+                      width: 0.8,
                     ),
                   ),
+                  child: Text(
+                    '$_survivorCount SURVIVED',
+                    style: AppTypography.monoChip.copyWith(
+                      fontSize: 9.0,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.emerald,
+                    ),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            ..._coreFragments.map((f) {
+            ..._coreFragments.take(3).map((f) {
               return Container(
                 margin: const EdgeInsets.symmetric(vertical: 3.0),
                 padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 7.0),
@@ -853,12 +1009,16 @@ class _TrimmingScreenState extends State<TrimmingScreen>
                   children: [
                     const Icon(Icons.check_rounded, size: 12, color: AppColors.emerald),
                     const SizedBox(width: 8),
-                    Text(
-                      f,
-                      style: AppTypography.bodyMedium.copyWith(
-                        fontSize: 12.0,
-                        fontWeight: FontWeight.w600,
-                        color: const Color(0xFFF1F5F9),
+                    Expanded(
+                      child: Text(
+                        f,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTypography.bodyMedium.copyWith(
+                          fontSize: 12.0,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFFF1F5F9),
+                        ),
                       ),
                     ),
                   ],

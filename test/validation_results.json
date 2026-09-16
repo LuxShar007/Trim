@@ -1,0 +1,171 @@
+[
+  {
+    "index": 1,
+    "input": "An app where college students can find hackathons, discover teammates, trade project ideas, and manage submissions.",
+    "project": "HackMate",
+    "coreValue": "Help college students join hackathons by finding events, forming teams, and submitting their projects.",
+    "mustHaves": [
+      "Find hackathons",
+      "Discover teammates",
+      "Manage hackathon submissions"
+    ],
+    "discardedBloat": [
+      "Trade project ideas"
+    ],
+    "harshTruth": "You're trying to build a full hackathon marketplace before proving the basic event‑finding and submission flow works.",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  },
+  {
+    "index": 2,
+    "input": "A tool that helps engineering students solve quantum mechanics equations step by step and visualize the results.",
+    "project": "QuantumSolver",
+    "coreValue": "Help engineering students solve quantum mechanics equations step by step and visualize the results.",
+    "mustHaves": [
+      "Accept user‑entered quantum equation or problem description",
+      "Generate a step‑by‑step solution for the quantum equation",
+      "Render visualizations of the solution results"
+    ],
+    "discardedBloat": [],
+    "harshTruth": "You're bundling teaching, solving, and visualizing before confirming the step‑by‑step solver alone delivers value.",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  },
+  {
+    "index": 3,
+    "input": "An app for pet owners to track medicines, vaccination dates, dosage schedules, and vet appointments.",
+    "project": "PetMed",
+    "coreValue": "Help pet owners keep track of medicines, vaccinations, dosage schedules, and vet appointments by storing the data and reminding them when actions are due",
+    "mustHaves": [
+      "Store pet health records (medicines, vaccination dates, dosage schedules, vet appointments)",
+      "Send reminders for upcoming medication doses and vet appointments"
+    ],
+    "discardedBloat": [],
+    "harshTruth": "You tried to bundle full medical record keeping and scheduling before proving owners just need a simple reminder loop",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  },
+  {
+    "index": 4,
+    "input": "A race strategy app that helps amateur karting and sim racing drivers compare tyre choices, pit timing, fuel strategy, and weather.",
+    "project": "KartStrategist",
+    "coreValue": "Help amateur karting and sim racing drivers compare tyre choices, pit timing, fuel strategy, and weather to plan better race strategies.",
+    "mustHaves": [
+      "Input race strategy parameters (tyre choice, pit timing, fuel strategy, weather)",
+      "Display comparative analysis of entered parameters"
+    ],
+    "discardedBloat": [],
+    "harshTruth": "You're trying to pack multiple strategy dimensions into one app before proving a basic input‑compare loop works.",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  },
+  {
+    "index": 5,
+    "input": "An app that predicts how crowded a local train will be at different stations and suggests less crowded departures.",
+    "project": "CrowdRail",
+    "coreValue": "Help commuters avoid packed trains by predicting station crowding and recommending less crowded departures.",
+    "mustHaves": [
+      "Predict crowding levels for each station and departure time",
+      "Show predictions and recommend the least crowded departures"
+    ],
+    "discardedBloat": [],
+    "harshTruth": "You're trying to add a full analytics platform before proving the basic prediction‑and‑recommendation loop works.",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  },
+  {
+    "index": 6,
+    "input": "A restaurant app that tracks ingredient stock, predicts shortages, manages suppliers, and alerts staff when food waste is increasing.",
+    "project": "PantryPulse",
+    "coreValue": "Help restaurant staff avoid ingredient shortages and rising waste by tracking stock, forecasting shortages, and alerting them to waste trends.",
+    "mustHaves": [
+      "Track ingredient stock",
+      "Predict ingredient shortages",
+      "Alert staff when food waste is increasing"
+    ],
+    "discardedBloat": [
+      "Manage suppliers"
+    ],
+    "harshTruth": "You're trying to build inventory, forecasting, supplier, and waste systems all at once instead of first proving the basic stock‑tracking and alert loop works.",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  },
+  {
+    "index": 7,
+    "input": "A wedding planning app that manages guests, vendors, budgets, schedules, invitations, seating arrangements, and payments.",
+    "project": "WedPlan",
+    "coreValue": "Help couples plan their wedding by managing guests, invitations, budget, and schedule.",
+    "mustHaves": [
+      "Guest list management",
+      "Invitation sending and RSVP tracking",
+      "Budget tracking",
+      "Schedule/task management"
+    ],
+    "discardedBloat": [
+      "Vendor management",
+      "Seating arrangement planning",
+      "Payment processing"
+    ],
+    "harshTruth": "You're trying to build a full wedding ecosystem before proving the core planning loop works.",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  },
+  {
+    "index": 8,
+    "input": "A language-learning app that uses the camera to identify everyday objects and teaches the user their names in another language.",
+    "project": "SnapLingo",
+    "coreValue": "Help language learners learn object names by pointing their camera at everyday items and seeing the translation.",
+    "mustHaves": [
+      "Camera-based object identification",
+      "Display target-language name for identified object"
+    ],
+    "discardedBloat": [],
+    "harshTruth": "You're trying to pack a full curriculum into a camera app before proving the basic identify‑and‑translate loop works.",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  },
+  {
+    "index": 9,
+    "input": "A platform for infrastructure companies to use drones to inspect bridges, detect cracks, generate reports, and track maintenance.",
+    "project": "BridgeDrone",
+    "coreValue": "Help infrastructure companies inspect bridges with drones, detect cracks, generate reports, and track maintenance.",
+    "mustHaves": [
+      "Drone-based bridge image capture",
+      "Automated crack detection on captured images",
+      "Inspection report generation",
+      "Maintenance tracking linked to reports"
+    ],
+    "discardedBloat": [],
+    "harshTruth": "You're adding reporting and maintenance tracking before proving the drone capture‑to‑crack‑detection loop is reliable.",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  },
+  {
+    "index": 10,
+    "input": "An app for students that tracks spending, recurring subscriptions, savings goals, shared expenses, and monthly budgets.",
+    "project": "CampusCash",
+    "coreValue": "Help students manage their money by tracking spending and monitoring monthly budgets.",
+    "mustHaves": [
+      "Record spending transactions",
+      "Set and view monthly budget summary"
+    ],
+    "discardedBloat": [
+      "Recurring subscriptions tracking",
+      "Savings goals tracking",
+      "Shared expenses management"
+    ],
+    "harshTruth": "You're trying to pack subscriptions, savings goals, and expense splitting into the first release before proving the basic spend‑and‑budget loop works.",
+    "relevant": true,
+    "sampleLeakage": false,
+    "pass": true
+  }
+]
