@@ -211,9 +211,35 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
     }
   }
 
+  /// Safely resets the composer, text controller, counters, and transient states
+  /// so the screen represents a brand new idea when returning from a Trim flow.
+  void resetForNewIdea() => _resetForNewIdea();
+
+  void _resetForNewIdea() {
+    if (_voiceService.state == TrimVoiceState.listening) {
+      _voiceService.cancelListening();
+    }
+    _errorDismissTimer?.cancel();
+
+    _ideaController.clear();
+
+    if (mounted) {
+      setState(() {
+        _hasContent = false;
+        _charCount = 0;
+        _isSubmitting = false;
+        _isHoldingMic = false;
+        _preVoiceText = '';
+        _voiceErrorMessage = null;
+        _inputMode = BrainDumpInputMode.type;
+      });
+      _focusNode.unfocus();
+    }
+  }
+
   Future<void> _submitIdea() async {
-    final text = _ideaController.text.trim();
-    if (text.isEmpty || _isSubmitting) return;
+    final finalSubmittedIdea = _ideaController.text.trim();
+    if (finalSubmittedIdea.isEmpty || _isSubmitting) return;
 
     final now = DateTime.now();
     if (_lastSubmitTime != null &&
@@ -241,7 +267,7 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
       await Navigator.of(context).push(
         PageRouteBuilder(
           pageBuilder: (context, animation, secondaryAnimation) =>
-              TrimmingScreen(rawIdea: text),
+              TrimmingScreen(rawIdea: finalSubmittedIdea),
           transitionDuration: const Duration(milliseconds: 400),
           reverseTransitionDuration: const Duration(milliseconds: 300),
           transitionsBuilder: (context, animation, secondaryAnimation, child) {
@@ -262,7 +288,7 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
       );
     } finally {
       if (mounted) {
-        setState(() => _isSubmitting = false);
+        _resetForNewIdea();
       }
     }
   }

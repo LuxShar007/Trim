@@ -10,7 +10,7 @@
   <a href="https://flutter.dev"><img src="https://img.shields.io/badge/Flutter-3.47+-02569B?logo=flutter&logoColor=white" alt="Flutter" /></a>
   <a href="https://dart.dev"><img src="https://img.shields.io/badge/Dart-3.13+-0175C2?logo=dart&logoColor=white" alt="Dart" /></a>
   <img src="https://img.shields.io/badge/Platforms-Android%20%7C%20Web-black" alt="Platforms" />
-  <img src="https://img.shields.io/badge/Tests-109%20Passing-10B981" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-119%20Passing-10B981" alt="Tests" />
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-emerald" alt="License" /></a>
 </p>
 
@@ -141,7 +141,7 @@ During the v1.0.0 engineering cycle, on-device AI was evaluated in depth:
 
 - **High-Refresh Interaction**: Designed and tested for smooth interaction on high-refresh Android devices.
 - **Binary Footprint**: Optimized split APK (`arm64-v8a`) is only **18.0 MB**.
-- **Automated Verification**: **109 of 109 automated tests passing** across unit, widget, and integration test suites.
+- **Automated Verification**: **119 of 119 automated tests passing** across unit, widget, and integration test suites.
 - **Static Analysis**: **0 issues found** via `flutter analyze`.
 
 ---
