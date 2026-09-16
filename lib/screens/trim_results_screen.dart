@@ -753,8 +753,8 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                     icon: Icons.laptop_mac_rounded,
                     variant: TrimButtonVariant.primary,
                     morphState: _buildDeskState,
-                    loadingLabel: 'HANDING OFF...',
-                    successLabel: 'SENT TO DESK ✓',
+                    loadingLabel: 'PREPARING MVP...',
+                    successLabel: 'READY ON DESK ✓',
                     height: 46.0,
                     onTap: () => _sendToBuildDesk(btnContext),
                   );

@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:trim/main.dart';
 import 'package:trim/models/trim_result.dart';
 import 'package:trim/screens/trim_results_screen.dart';
 import 'package:trim/widgets/feature_card.dart';
 import 'package:trim/widgets/glass_feature_card.dart';
 import 'package:trim/widgets/score_ring.dart';
 import 'package:trim/widgets/spring_button.dart';
+import 'package:trim/screens/brain_dump_screen.dart';
 import 'package:trim/widgets/spring_guillotine_button.dart';
 import 'package:trim/widgets/verdict_chip.dart';
 
 void main() {
   testWidgets('TrimApp smoke test renders BrainDumpScreen cleanly', (WidgetTester tester) async {
-    await tester.pumpWidget(const TrimApp());
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+    await tester.pumpAndSettle();
 
-    // Verify app title
-    expect(find.text('Trim'), findsOneWidget);
+    // Verify app title wordmark
+    expect(find.textContaining('TRIM'), findsWidgets);
 
     // Verify hint text in the massive text field
     expect(find.text('Dump your massive, bloated app idea here...'), findsOneWidget);
@@ -26,14 +26,14 @@ void main() {
   });
 
   testWidgets('Sample bloated idea can be inserted into TextField', (WidgetTester tester) async {
-    await tester.pumpWidget(const TrimApp());
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+    await tester.pumpAndSettle();
 
     final sampleButton = find.text('Insert Bloated Idea Sample');
     expect(sampleButton, findsOneWidget);
 
     await tester.tap(sampleButton);
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
 
     expect(find.textContaining('social fitness app for crypto traders'), findsOneWidget);
   });

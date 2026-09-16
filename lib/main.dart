@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'core/theme/app_theme.dart';
-import 'screens/brain_dump_screen.dart';
+import 'screens/splash_screen.dart';
 import 'services/groq_service.dart';
 import 'services/trim_session_repository.dart';
 
@@ -37,7 +37,7 @@ class TrimApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       themeMode: ThemeMode.dark,
       darkTheme: AppTheme.dark,
-      home: const BrainDumpScreen(),
+      home: const SplashScreen(),
     );
   }
 }

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -81,19 +84,25 @@ class OfficeKitService {
         ? ((result.discardedBloat.length / total) * 100).round()
         : 0;
 
+    final displayName = result.projectName.trim().isEmpty ? 'Project' : result.projectName.trim();
+
     // 1. MVP_SPEC.md
     final specBuf = StringBuffer();
-    specBuf.writeln('# ${result.projectName} — MVP SPECIFICATION');
+    specBuf.writeln('# $displayName');
     specBuf.writeln();
     specBuf.writeln('## Core Value');
-    specBuf.writeln(result.coreValue);
+    specBuf.writeln(result.coreValue.trim().isEmpty ? 'No core value specified.' : result.coreValue.trim());
     specBuf.writeln();
     specBuf.writeln('## Must-Haves');
-    for (var i = 0; i < result.mustHaves.length; i++) {
-      final item = result.mustHaves[i];
-      specBuf.writeln('${i + 1}. **${item.feature}**');
-      if (item.reason.isNotEmpty) {
-        specBuf.writeln('   _${item.reason}_');
+    if (result.mustHaves.isEmpty) {
+      specBuf.writeln('1. Core functionality');
+    } else {
+      for (var i = 0; i < result.mustHaves.length; i++) {
+        final item = result.mustHaves[i];
+        specBuf.writeln('${i + 1}. ${item.feature}');
+        if (item.reason.isNotEmpty) {
+          specBuf.writeln('   _${item.reason}_');
+        }
       }
     }
     specBuf.writeln();
@@ -111,47 +120,48 @@ class OfficeKitService {
 
     // 2. BUILD_ORDER.md
     final orderBuf = StringBuffer();
-    orderBuf.writeln('# ${result.projectName} — BUILD ORDER');
+    orderBuf.writeln('# Build First');
     orderBuf.writeln();
-    orderBuf.writeln('## Implementation Sequence');
     if (result.buildOrder.isEmpty) {
-      for (var i = 0; i < result.mustHaves.length; i++) {
-        orderBuf.writeln('${(i + 1).toString().padLeft(2, '0')}. ${result.mustHaves[i].feature}');
+      if (result.mustHaves.isEmpty) {
+        orderBuf.writeln('1. Initialize core loop');
+      } else {
+        for (var i = 0; i < result.mustHaves.length; i++) {
+          orderBuf.writeln('${i + 1}. ${result.mustHaves[i].feature}');
+        }
       }
     } else {
       for (var i = 0; i < result.buildOrder.length; i++) {
-        orderBuf.writeln('${(i + 1).toString().padLeft(2, '0')}. ${result.buildOrder[i]}');
+        orderBuf.writeln('${i + 1}. ${result.buildOrder[i]}');
       }
     }
-    orderBuf.writeln();
-    orderBuf.writeln('## Directive');
-    orderBuf.writeln('Implement step 01 completely and verify before moving to step 02.');
 
     // 3. CUT_FEATURES.md
     final cutBuf = StringBuffer();
-    cutBuf.writeln('# ${result.projectName} — CUT FEATURES (THE NOISE)');
+    cutBuf.writeln('# Discarded Bloat');
     cutBuf.writeln();
-    cutBuf.writeln('## Discarded Bloat & Rejection Reasons');
     if (result.discardedBloat.isEmpty) {
       cutBuf.writeln('_None. Idea was submitted fully focused._');
     } else {
-      for (final item in result.discardedBloat) {
-        cutBuf.writeln('- ~~${item.feature}~~: _${item.reason}_');
+      for (var i = 0; i < result.discardedBloat.length; i++) {
+        final item = result.discardedBloat[i];
+        cutBuf.writeln('${i + 1}. ${item.feature}');
+        if (item.reason.isNotEmpty) {
+          cutBuf.writeln('   _${item.reason}_');
+        }
       }
     }
-    cutBuf.writeln();
-    cutBuf.writeln('## Rule');
-    cutBuf.writeln('Do NOT implement these features in the initial release.');
 
     // 4. PRODUCT_TRUTH.md
     final truthBuf = StringBuffer();
-    truthBuf.writeln('# ${result.projectName} — PRODUCT TRUTH');
+    truthBuf.writeln('# Product Truth');
     truthBuf.writeln();
-    truthBuf.writeln('## Focus Constraint');
-    truthBuf.writeln(result.harshTruth);
+    truthBuf.writeln(result.harshTruth.trim().isEmpty
+        ? 'Build the smallest complete loop.'
+        : result.harshTruth.trim());
 
     return OfficeKitHandoffBundle(
-      projectName: result.projectName,
+      projectName: displayName,
       mvpSpec: specBuf.toString().trim(),
       buildOrder: orderBuf.toString().trim(),
       cutFeatures: cutBuf.toString().trim(),
@@ -159,10 +169,47 @@ class OfficeKitService {
     );
   }
 
+  /// Prepares the 4 human-readable markdown specifications as real files in
+  /// a structured TRIMMED_MVP directory for cross-device file transfer.
+  Future<List<XFile>> prepareXFiles(TrimResult result) async {
+    final bundle = createHandoff(result);
+    final xfiles = <XFile>[];
+
+    if (!kIsWeb) {
+      try {
+        final tempDir = Directory('${Directory.systemTemp.path}/TRIMMED_MVP');
+        if (!await tempDir.exists()) {
+          await tempDir.create(recursive: true);
+        }
+
+        for (final entry in bundle.files.entries) {
+          final file = File('${tempDir.path}/${entry.key}');
+          await file.writeAsString(entry.value, flush: true);
+          xfiles.add(XFile(file.path, mimeType: 'text/markdown', name: entry.key));
+        }
+        return xfiles;
+      } catch (_) {
+        // Fallback to in-memory bytes if filesystem is restricted
+      }
+    }
+
+    for (final entry in bundle.files.entries) {
+      final bytes = Uint8List.fromList(utf8.encode(entry.value));
+      xfiles.add(
+        XFile.fromData(
+          bytes,
+          name: entry.key,
+          mimeType: 'text/markdown',
+        ),
+      );
+    }
+    return xfiles;
+  }
+
   /// Sends the structured handoff bundle to the Build Desk laptop using available
   /// Office Kit capabilities:
-  /// 1. Shared System Clipboard (instant cross-device paste on laptop)
-  /// 2. Native Cross-Device Share Sheet (Direct PC Connect / Nearby / File transfer)
+  /// 1. Shared System Clipboard (instant cross-device paste on laptop via OriginOS / Office Kit)
+  /// 2. Native Cross-Device File Transfer (TRIMMED_MVP markdown files shared directly to laptop)
   Future<bool> sendToBuildDesk({
     required BuildContext context,
     required TrimResult result,
@@ -174,13 +221,17 @@ class OfficeKitService {
     final box = context.findRenderObject() as RenderBox?;
     final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
 
-    // 2. Synchronize to shared system clipboard (Office Kit / PC Connect real-time clipboard sync)
+    // 2. Synchronize to shared system clipboard (Office Kit / OriginOS real-time clipboard sync)
     await Clipboard.setData(ClipboardData(text: combinedMarkdown));
     HapticsUtil.mediumImpact();
 
-    // 3. Trigger native share sheet for direct PC file/document transfer
+    // 3. Prepare structured TRIMMED_MVP markdown files
+    final xfiles = await prepareXFiles(result);
+
+    // 4. Trigger native cross-device file transfer / share sheet with TRIMMED_MVP files
     await SharePlus.instance.share(
       ShareParams(
+        files: xfiles,
         text: combinedMarkdown,
         subject: '${bundle.projectName} — Build Desk Handoff (4 Specs)',
         sharePositionOrigin: origin,
