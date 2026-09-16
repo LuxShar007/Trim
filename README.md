@@ -1,7 +1,7 @@
 # TRIM — AI Product-to-Build Copilot
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/LuxShar007/Trim/main/web/icons/Icon-192.png" width="84" height="84" alt="Trim Logo" />
+  <img src="assets/icons/trim_icon.png" width="96" height="96" alt="TRIM Logo" />
 </p>
 
 <p align="center">

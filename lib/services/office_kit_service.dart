@@ -206,6 +206,130 @@ class OfficeKitService {
     return xfiles;
   }
 
+  /// Prepares real durable `.md` files for a specific session ID.
+  Future<List<XFile>> prepareXFilesFromArtifacts(
+    String sessionId,
+    Map<String, String> artifacts,
+  ) async {
+    final xfiles = <XFile>[];
+
+    if (!kIsWeb) {
+      try {
+        final sessionDir = Directory('${Directory.systemTemp.path}/TRIM_BUILD_DESK/$sessionId');
+        if (!await sessionDir.exists()) {
+          await sessionDir.create(recursive: true);
+        }
+
+        for (final entry in artifacts.entries) {
+          final file = File('${sessionDir.path}/${entry.key}');
+          await file.writeAsString(entry.value, flush: true);
+          xfiles.add(XFile(file.path, mimeType: 'text/markdown', name: entry.key));
+        }
+        return xfiles;
+      } catch (_) {
+        // Fallback to in-memory bytes if filesystem is restricted
+      }
+    }
+
+    for (final entry in artifacts.entries) {
+      final bytes = Uint8List.fromList(utf8.encode(entry.value));
+      xfiles.add(
+        XFile.fromData(
+          bytes,
+          name: entry.key,
+          mimeType: 'text/markdown',
+        ),
+      );
+    }
+    return xfiles;
+  }
+
+  /// Prepares a single real `.md` file for an individual artifact.
+  Future<XFile> prepareSingleXFile(
+    String sessionId,
+    String filename,
+    String content,
+  ) async {
+    if (!kIsWeb) {
+      try {
+        final sessionDir = Directory('${Directory.systemTemp.path}/TRIM_BUILD_DESK/$sessionId');
+        if (!await sessionDir.exists()) {
+          await sessionDir.create(recursive: true);
+        }
+        final file = File('${sessionDir.path}/$filename');
+        await file.writeAsString(content, flush: true);
+        return XFile(file.path, mimeType: 'text/markdown', name: filename);
+      } catch (_) {
+        // Fallback to in-memory bytes
+      }
+    }
+
+    final bytes = Uint8List.fromList(utf8.encode(content));
+    return XFile.fromData(
+      bytes,
+      name: filename,
+      mimeType: 'text/markdown',
+    );
+  }
+
+  /// Shares an individual artifact file via native Android sharing sheet.
+  Future<bool> shareSingleArtifact({
+    required BuildContext context,
+    required String sessionId,
+    required String filename,
+    required String content,
+    required String projectName,
+  }) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+
+    final xfile = await prepareSingleXFile(sessionId, filename, content);
+
+    await SharePlus.instance.share(
+      ShareParams(
+        files: [xfile],
+        text: content,
+        subject: '$projectName — $filename',
+        sharePositionOrigin: origin,
+      ),
+    );
+    return true;
+  }
+
+  /// Shares all 4 persistent Build Desk artifact files together using native sharing.
+  Future<bool> shareAllArtifacts({
+    required BuildContext context,
+    required String sessionId,
+    required Map<String, String> artifacts,
+    required String projectName,
+  }) async {
+    final box = context.findRenderObject() as RenderBox?;
+    final origin = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+
+    final xfiles = await prepareXFilesFromArtifacts(sessionId, artifacts);
+
+    // Build combined summary text for share sheet
+    final buffer = StringBuffer();
+    buffer.writeln('# $projectName — 4 BUILD DESK ARTIFACTS');
+    buffer.writeln('Prepared by TRIM for implementation handoff.');
+    buffer.writeln();
+    for (final entry in artifacts.entries) {
+      buffer.writeln('=== FILE: ${entry.key} ===');
+      buffer.writeln(entry.value);
+      buffer.writeln();
+    }
+
+    await SharePlus.instance.share(
+      ShareParams(
+        files: xfiles,
+        text: buffer.toString(),
+        subject: '$projectName — Build Desk (4 Files)',
+        sharePositionOrigin: origin,
+      ),
+    );
+    return true;
+  }
+
   /// Sends the structured handoff bundle to the Build Desk laptop using available
   /// Office Kit capabilities:
   /// 1. Shared System Clipboard (instant cross-device paste on laptop via OriginOS / Office Kit)

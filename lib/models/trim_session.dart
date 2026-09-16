@@ -19,6 +19,7 @@ class TrimSession {
   final int cutCount;
   final int scopeReduction;
   final bool isLocked;
+  final Map<String, String>? buildDeskArtifacts;
 
   const TrimSession({
     required this.id,
@@ -36,7 +37,12 @@ class TrimSession {
     required this.cutCount,
     required this.scopeReduction,
     this.isLocked = false,
+    this.buildDeskArtifacts,
   });
+
+  /// True if 4 Build Desk markdown artifacts have been persisted for this session.
+  bool get hasBuildDeskArtifacts =>
+      buildDeskArtifacts != null && buildDeskArtifacts!.isNotEmpty;
 
   /// Backward compatibility alias for harshTruth
   String get harshTruth => productTruth;
@@ -51,6 +57,7 @@ class TrimSession {
     required String originalIdea,
     required TrimResult result,
     bool isLocked = false,
+    Map<String, String>? buildDeskArtifacts,
   }) {
     final mustHaves = List<MustHave>.from(result.mustHaves);
     final discardedBloat = List<DiscardedFeature>.from(result.discardedBloat);
@@ -75,6 +82,7 @@ class TrimSession {
       cutCount: cuts,
       scopeReduction: reduction,
       isLocked: isLocked,
+      buildDeskArtifacts: buildDeskArtifacts,
     );
   }
 
@@ -107,6 +115,7 @@ class TrimSession {
     int? cutCount,
     int? scopeReduction,
     bool? isLocked,
+    Map<String, String>? buildDeskArtifacts,
   }) {
     return TrimSession(
       id: id ?? this.id,
@@ -124,6 +133,7 @@ class TrimSession {
       cutCount: cutCount ?? this.cutCount,
       scopeReduction: scopeReduction ?? this.scopeReduction,
       isLocked: isLocked ?? this.isLocked,
+      buildDeskArtifacts: buildDeskArtifacts ?? this.buildDeskArtifacts,
     );
   }
 
@@ -145,6 +155,7 @@ class TrimSession {
       'cutCount': cutCount,
       'scopeReduction': scopeReduction,
       'isLocked': isLocked,
+      if (buildDeskArtifacts != null) 'buildDeskArtifacts': buildDeskArtifacts,
     };
   }
 
@@ -165,6 +176,13 @@ class TrimSession {
 
     final truth = (json['productTruth'] ?? json['harshTruth']) as String? ?? '';
 
+    Map<String, String>? artifacts;
+    if (json['buildDeskArtifacts'] != null && json['buildDeskArtifacts'] is Map) {
+      artifacts = (json['buildDeskArtifacts'] as Map).map(
+        (k, v) => MapEntry(k.toString(), v.toString()),
+      );
+    }
+
     return TrimSession(
       id: json['id'] as String? ?? DateTime.now().microsecondsSinceEpoch.toString(),
       createdAt: json['createdAt'] != null
@@ -183,6 +201,7 @@ class TrimSession {
       cutCount: cuts,
       scopeReduction: reduction,
       isLocked: json['isLocked'] as bool? ?? false,
+      buildDeskArtifacts: artifacts,
     );
   }
 

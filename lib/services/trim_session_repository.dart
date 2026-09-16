@@ -96,6 +96,31 @@ class TrimSessionRepository {
     }
   }
 
+  /// Persists generated Build Desk markdown artifacts for a specific session.
+  Future<void> saveArtifacts(String id, Map<String, String> artifacts) async {
+    final session = await getSession(id);
+    if (session != null) {
+      final updated = session.copyWith(buildDeskArtifacts: artifacts);
+      await saveSession(updated);
+    }
+  }
+
+  /// Atomically updates lock status and persists generated Build Desk artifacts.
+  Future<void> setLockedAndArtifacts(
+    String id,
+    bool isLocked,
+    Map<String, String>? artifacts,
+  ) async {
+    final session = await getSession(id);
+    if (session != null) {
+      final updated = session.copyWith(
+        isLocked: isLocked,
+        buildDeskArtifacts: artifacts ?? session.buildDeskArtifacts,
+      );
+      await saveSession(updated);
+    }
+  }
+
   /// Delete a saved session.
   Future<void> deleteSession(String id) async {
     final box = await _ensureBox();

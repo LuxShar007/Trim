@@ -541,6 +541,28 @@ class _TrimWorkspaceScreenState extends State<TrimWorkspaceScreen> {
                       ),
                     ],
                   ),
+                  if (session.hasBuildDeskArtifacts) ...[
+                    const SizedBox(height: 6.0),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.description_outlined,
+                          size: 11,
+                          color: Color(0xFFA1A1AA),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          'BUILD DESK · 4 FILES',
+                          style: AppTypography.monoLabel.copyWith(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFA1A1AA),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

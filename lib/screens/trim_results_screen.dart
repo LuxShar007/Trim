@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import '../core/animations/spring_physics.dart';
 import '../core/theme/app_colors.dart';
@@ -9,6 +10,7 @@ import '../models/trim_result.dart';
 import '../models/trim_session.dart';
 import '../services/office_kit_service.dart';
 import '../services/trim_session_repository.dart';
+import '../widgets/build_desk_artifact_preview_sheet.dart';
 import '../widgets/trim_glass_button.dart';
 import '../widgets/trim_glass_surface.dart';
 import '../widgets/trim_morph_card.dart';
@@ -46,6 +48,7 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
   late final TrimResult _result;
   late final String _sessionId;
   late bool _isLocked;
+  Map<String, String>? _artifacts;
   bool _showLockConfirmation = false;
   bool _showAllNoise = false;
 
@@ -56,7 +59,6 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
   TrimButtonMorphState _exportState = TrimButtonMorphState.idle;
   TrimButtonMorphState _buildDeskState = TrimButtonMorphState.idle;
 
-
   @override
   void initState() {
     super.initState();
@@ -65,6 +67,7 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
       _result = widget.session!.toTrimResult();
       _sessionId = widget.session!.id;
       _isLocked = widget.session!.isLocked;
+      _artifacts = widget.session!.buildDeskArtifacts;
     } else {
       _result = widget.result!;
       _isLocked = false;
@@ -172,10 +175,24 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
     });
 
     try {
-      await OfficeKitService.instance.sendToBuildDesk(
-        context: context,
-        result: _result,
-      );
+      if (_artifacts != null && _artifacts!.isNotEmpty) {
+        final bundle = OfficeKitService.instance.createHandoff(_result);
+        await Clipboard.setData(ClipboardData(text: bundle.toCombinedHandoff()));
+        HapticsUtil.mediumImpact();
+
+        if (!context.mounted) return;
+        await OfficeKitService.instance.shareAllArtifacts(
+          context: context,
+          sessionId: _sessionId,
+          artifacts: _artifacts!,
+          projectName: _result.projectName,
+        );
+      } else {
+        await OfficeKitService.instance.sendToBuildDesk(
+          context: context,
+          result: _result,
+        );
+      }
 
       if (!mounted) return;
       setState(() {
@@ -518,6 +535,9 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                           // 8. MVP LOCKED (Sections 29, 30, 31)
                           _buildMvpLockSection(),
 
+                          // BUILD DESK ARTIFACTS
+                          _buildBuildDeskSection(),
+
                           const SizedBox(height: 14.0),
 
                           // 9. EXPORT MVP (Section 24)
@@ -840,13 +860,19 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
                         borderRadius: BorderRadius.circular(6.0),
                       ),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       HapticsUtil.mediumImpact();
+                      final bundle = OfficeKitService.instance.createHandoff(_result);
                       setState(() {
                         _isLocked = true;
                         _showLockConfirmation = false;
+                        _artifacts = bundle.files;
                       });
-                      TrimSessionRepository.instance.setLocked(_sessionId, true);
+                      await TrimSessionRepository.instance.setLockedAndArtifacts(
+                        _sessionId,
+                        true,
+                        bundle.files,
+                      );
                     },
                     child: Text(
                       'LOCK MVP',
@@ -980,6 +1006,272 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBuildDeskSection() {
+    final bool isSessionLocked = _isLocked || (widget.session?.isLocked ?? false);
+    final bool hasArtifacts = _artifacts != null && _artifacts!.isNotEmpty;
+
+    if (!isSessionLocked && !hasArtifacts) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.description_outlined,
+                size: 13,
+                color: AppColors.orange,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                'BUILD DESK',
+                style: AppTypography.monoHeader.copyWith(
+                  fontSize: 11.5,
+                  letterSpacing: 1.1,
+                  color: const Color(0xFFE4E4E7),
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (hasArtifacts)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF141418),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: const Color(0xFF27272A), width: 0.6),
+                  ),
+                  child: Text(
+                    '4 FILES',
+                    style: AppTypography.monoLabel.copyWith(
+                      fontSize: 9.0,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.emerald,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 12.0),
+
+          if (!hasArtifacts) ...[
+            TrimGlassSurface(
+              intensity: TrimGlassIntensity.low,
+              padding: const EdgeInsets.all(14.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Artifacts unavailable for this older session.',
+                    style: AppTypography.bodySmall.copyWith(
+                      fontSize: 12.5,
+                      color: const Color(0xFFA1A1AA),
+                    ),
+                  ),
+                  const SizedBox(height: 12.0),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.orange,
+                        side: const BorderSide(color: Color(0xFF3F2618), width: 0.8),
+                        backgroundColor: const Color(0xFF140D0A),
+                        padding: const EdgeInsets.symmetric(vertical: 10.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                      icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                      label: Text(
+                        'GENERATE BUILD FILES',
+                        style: AppTypography.monoLabel.copyWith(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.orange,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
+                      onPressed: () async {
+                        HapticsUtil.mediumImpact();
+                        final bundle = OfficeKitService.instance.createHandoff(_result);
+                        setState(() {
+                          _artifacts = bundle.files;
+                        });
+                        await TrimSessionRepository.instance.saveArtifacts(
+                          _sessionId,
+                          bundle.files,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            _buildArtifactCard(
+              filename: 'MVP_SPEC.md',
+              subtitle: 'Build specification',
+              accentColor: AppColors.emerald,
+              content: _artifacts!['MVP_SPEC.md'] ?? '',
+            ),
+            const SizedBox(height: 8.0),
+            _buildArtifactCard(
+              filename: 'BUILD_ORDER.md',
+              subtitle: 'Implementation sequence',
+              accentColor: AppColors.orange,
+              content: _artifacts!['BUILD_ORDER.md'] ?? '',
+            ),
+            const SizedBox(height: 8.0),
+            _buildArtifactCard(
+              filename: 'CUT_FEATURES.md',
+              subtitle: 'Features intentionally excluded',
+              accentColor: const Color(0xFFEF4444),
+              content: _artifacts!['CUT_FEATURES.md'] ?? '',
+            ),
+            const SizedBox(height: 8.0),
+            _buildArtifactCard(
+              filename: 'PRODUCT_TRUTH.md',
+              subtitle: 'Reasoning behind the scope decision',
+              accentColor: const Color(0xFFE4E4E7),
+              content: _artifacts!['PRODUCT_TRUTH.md'] ?? '',
+            ),
+
+            const SizedBox(height: 12.0),
+
+            Builder(
+              builder: (btnCtx) {
+                return OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFFE4E4E7),
+                    backgroundColor: const Color(0xFF101015),
+                    minimumSize: const Size(double.infinity, 42),
+                    side: const BorderSide(color: Color(0xFF24242A), width: 0.8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.0),
+                    ),
+                  ),
+                  icon: const Icon(Icons.share_rounded, size: 15, color: AppColors.orange),
+                  label: Text(
+                    'SHARE ALL BUILD FILES',
+                    style: AppTypography.monoLabel.copyWith(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                      color: const Color(0xFFE4E4E7),
+                    ),
+                  ),
+                  onPressed: () {
+                    HapticsUtil.mediumImpact();
+                    OfficeKitService.instance.shareAllArtifacts(
+                      context: btnCtx,
+                      sessionId: _sessionId,
+                      artifacts: _artifacts!,
+                      projectName: _result.projectName,
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArtifactCard({
+    required String filename,
+    required String subtitle,
+    required Color accentColor,
+    required String content,
+  }) {
+    return TrimGlassSurface(
+      intensity: TrimGlassIntensity.low,
+      accentColor: const Color(0xFF1E1E24),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
+      onTap: () {
+        BuildDeskArtifactPreviewSheet.show(
+          context: context,
+          filename: filename,
+          content: content,
+          sessionId: _sessionId,
+          projectName: _result.projectName,
+          accentColor: accentColor,
+        );
+      },
+      child: Row(
+        children: [
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accentColor,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  filename,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: AppTypography.bodySmall.copyWith(
+                    fontSize: 11.0,
+                    color: const Color(0xFF8E8E93),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Builder(
+            builder: (btnCtx) {
+              return IconButton(
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                icon: const Icon(
+                  Icons.share_outlined,
+                  size: 16,
+                  color: Color(0xFFA1A1AA),
+                ),
+                tooltip: 'Share $filename',
+                onPressed: () {
+                  HapticsUtil.lightClick();
+                  OfficeKitService.instance.shareSingleArtifact(
+                    context: btnCtx,
+                    sessionId: _sessionId,
+                    filename: filename,
+                    content: content,
+                    projectName: _result.projectName,
+                  );
+                },
+              );
+            },
+          ),
+          const Icon(
+            Icons.chevron_right_rounded,
+            size: 18,
+            color: Color(0xFF52525B),
+          ),
+        ],
+      ),
     );
   }
 }
