@@ -14,6 +14,9 @@ class MockTrimVoiceService implements TrimVoiceService {
   final ValueNotifier<TrimVoiceError?> _errorNotifier =
       ValueNotifier<TrimVoiceError?>(null);
 
+  final ValueNotifier<TrimVoicePermissionState> _permissionStateNotifier =
+      ValueNotifier<TrimVoicePermissionState>(TrimVoicePermissionState.granted);
+
   bool shouldFailInitialization = false;
   TrimVoiceError? errorToEmit;
   void Function(String text)? onResultHandler;
@@ -32,6 +35,10 @@ class MockTrimVoiceService implements TrimVoiceService {
   ValueListenable<TrimVoiceError?> get errorListenable => _errorNotifier;
 
   @override
+  ValueListenable<TrimVoicePermissionState> get permissionStateListenable =>
+      _permissionStateNotifier;
+
+  @override
   TrimVoiceState get state => _stateNotifier.value;
 
   @override
@@ -42,6 +49,15 @@ class MockTrimVoiceService implements TrimVoiceService {
 
   @override
   TrimVoiceError? get currentError => _errorNotifier.value;
+
+  @override
+  TrimVoicePermissionState get permissionState => _permissionStateNotifier.value;
+
+  @override
+  String? get currentLocaleId => 'en_IN';
+
+  @override
+  bool get isOnDeviceRecognitionAvailable => false;
 
   @override
   Future<bool> initialize() async {
@@ -109,6 +125,7 @@ class MockTrimVoiceService implements TrimVoiceService {
     _liveWordsNotifier.dispose();
     _soundLevelNotifier.dispose();
     _errorNotifier.dispose();
+    _permissionStateNotifier.dispose();
   }
 }
 
@@ -525,6 +542,45 @@ void main() {
       // Safe fallback to typing preserves screen stability
       await tester.pump(const Duration(milliseconds: 1600));
       expect(find.byType(TextField), findsOneWidget);
+    });
+
+    testWidgets('Test 9: silence/timeout error shows no speech detected (not permission denied)',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      mockService.simulateError(TrimVoiceError.noSpeech);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text('No speech detected. Speak or switch to typing.'),
+        findsOneWidget,
+      );
+      expect(find.textContaining('permission'), findsNothing);
+    });
+
+    testWidgets('Test 10: recoverable recognizerBusy error preserves SPEAK mode for easy retry',
+        (WidgetTester tester) async {
+      await tester.pumpWidget(const MaterialApp(home: BrainDumpScreen()));
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('SPEAK'));
+      await tester.pump(const Duration(milliseconds: 200));
+
+      mockService.simulateError(TrimVoiceError.recognizerBusy);
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        find.text('Speech recognition temporarily busy. Try again.'),
+        findsOneWidget,
+      );
+
+      // Should NOT force fallback to typing; remains in SPEAK mode
+      await tester.pump(const Duration(milliseconds: 1600));
+      expect(find.byType(VoiceMicrophoneButton), findsOneWidget);
     });
   });
 }

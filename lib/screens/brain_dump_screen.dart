@@ -117,9 +117,10 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
         }
       });
 
-      // Immediate or gentle fallback to typing
+      // Immediate or gentle fallback to typing for unrecoverable errors
       if (err == TrimVoiceError.permissionDenied ||
           err == TrimVoiceError.notAvailable ||
+          err == TrimVoiceError.serviceUnavailable ||
           err == TrimVoiceError.transcriptionFailed) {
         Future.delayed(const Duration(milliseconds: 1400), () {
           if (mounted && _inputMode == BrainDumpInputMode.speak) {

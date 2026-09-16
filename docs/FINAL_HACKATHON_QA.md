@@ -140,9 +140,9 @@ Built with `flutter build apk --split-per-abi --release`:
 
 | Target ABI | Artifact File Name | Size | SHA-256 Checksum |
 | :--- | :--- | :--- | :--- |
-| **ARM 64-bit (Primary iQOO Target)** | `app-arm64-v8a-release.apk` | 18.0 MB (18,887,716 B) | `BF7087C7BD0CBF54FA69E34FF98477D292AE3ED382EE8C9EFAAD06E7C9E3A8A8` |
-| **ARM 32-bit (Legacy Fallback)** | `app-armeabi-v7a-release.apk` | 15.5 MB (16,296,336 B) | `D4306E8B3D085CA90B9EC1B943B168BDFE708C73B09D043E44C16575F28C092F` |
-| **x86_64 (Emulators & Test Rigs)** | `app-x86_64-release.apk` | 19.4 MB (20,371,436 B) | `806564108FD937F931674699D42286807801CF9F1896715652A34AFC9D099BA4` |
+| **ARM 64-bit (Primary iQOO Target)** | `app-arm64-v8a-release.apk` | 18.0 MB (18,887,743 B) | `A50DEAAEE253454229DDF75BB03BF4B657ED7B34E3BD444A46125F7BB4891889` |
+| **ARM 32-bit (Legacy Fallback)** | `app-armeabi-v7a-release.apk` | 15.6 MB (16,345,529 B) | `2CA07FFA9A9A59EF48542F6769361E4E8759E96D6B590E496CCD81B7444A4861` |
+| **x86_64 (Emulators & Test Rigs)** | `app-x86_64-release.apk` | 19.4 MB (20,371,468 B) | `06FF5352520E38D52E0835D7F585F930C30EAD9F3B1B213DB51870B5FB20EFA5` |
 
 ---
 

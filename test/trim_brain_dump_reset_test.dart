@@ -18,6 +18,9 @@ class MockTrimVoiceService implements TrimVoiceService {
   final ValueNotifier<TrimVoiceError?> _errorNotifier =
       ValueNotifier<TrimVoiceError?>(null);
 
+  final ValueNotifier<TrimVoicePermissionState> _permissionStateNotifier =
+      ValueNotifier<TrimVoicePermissionState>(TrimVoicePermissionState.granted);
+
   void Function(String text)? onResultHandler;
   void Function(TrimVoiceError error)? onErrorHandler;
 
@@ -34,6 +37,10 @@ class MockTrimVoiceService implements TrimVoiceService {
   ValueListenable<TrimVoiceError?> get errorListenable => _errorNotifier;
 
   @override
+  ValueListenable<TrimVoicePermissionState> get permissionStateListenable =>
+      _permissionStateNotifier;
+
+  @override
   TrimVoiceState get state => _stateNotifier.value;
 
   @override
@@ -44,6 +51,15 @@ class MockTrimVoiceService implements TrimVoiceService {
 
   @override
   TrimVoiceError? get currentError => _errorNotifier.value;
+
+  @override
+  TrimVoicePermissionState get permissionState => _permissionStateNotifier.value;
+
+  @override
+  String? get currentLocaleId => 'en_IN';
+
+  @override
+  bool get isOnDeviceRecognitionAvailable => false;
 
   @override
   Future<bool> initialize() async => true;
@@ -101,6 +117,7 @@ class MockTrimVoiceService implements TrimVoiceService {
     _liveWordsNotifier.dispose();
     _soundLevelNotifier.dispose();
     _errorNotifier.dispose();
+    _permissionStateNotifier.dispose();
   }
 }
 
