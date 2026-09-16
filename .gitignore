@@ -4,6 +4,12 @@
 .env.production
 .env.development
 
+# Android Keystores & Signing
+*.jks
+*.keystore
+key.properties
+android/key.properties
+
 # Miscellaneous
 *.class
 *.log
