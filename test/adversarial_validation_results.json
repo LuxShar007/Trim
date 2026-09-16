@@ -1,0 +1,214 @@
+[
+  {
+    "index": 1,
+    "input": "Uber but for college students except also social networking, dating, food delivery, events, AI tutors, campus payments, NFT rewards and crypto.",
+    "project": "CampusCab",
+    "coreValue": "Help college students get a ride by requesting, matching, and paying through a simple app",
+    "mustHaves": [
+      "Request a ride",
+      "Match rider with driver",
+      "Process ride payment"
+    ],
+    "discardedBloat": [
+      "Social networking",
+      "Dating",
+      "Food delivery",
+      "Events",
+      "AI tutors",
+      "Campus payments",
+      "NFT rewards",
+      "Crypto"
+    ],
+    "productTruth": "You're trying to pack a whole campus ecosystem into a ride‑hailing app before proving the basic ride service works",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  },
+  {
+    "index": 2,
+    "input": "I want an app for my college that does everything students need.",
+    "project": "CampusHub",
+    "coreValue": "Help college students get everything they need through a single app.",
+    "mustHaves": [
+      "All-in-one student services"
+    ],
+    "discardedBloat": [],
+    "productTruth": "You're asking for an app that does everything without defining any concrete function, which makes the scope unbounded.",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  },
+  {
+    "index": 3,
+    "input": "Make Instagram, Notion, Spotify and Duolingo combined but simpler.",
+    "project": "Blendify",
+    "coreValue": "Help users capture, organize, listen to, and learn from mixed media in one simple hub.",
+    "mustHaves": [
+      "User accounts",
+      "Mixed media content creation (photo, note, music track, language lesson snippet)",
+      "Unified feed with playback/reading of content"
+    ],
+    "discardedBloat": [
+      "Photo sharing feed with likes and comments",
+      "Following other users",
+      "Stories",
+      "Advanced photo editing tools",
+      "Notion databases and relational tables",
+      "Task management and kanban boards",
+      "Collaboration and sharing workspaces",
+      "Rich text formatting and templates",
+      "Spotify search and recommendation engine",
+      "Playlist creation and management",
+      "Music library organization",
+      "Offline listening",
+      "Duolingo gamified streaks and points",
+      "Language level tracking and quizzes",
+      "Adaptive lesson sequencing",
+      "Voice recognition for speaking exercises"
+    ],
+    "productTruth": "You're trying to mash four distinct platforms together before proving any single experience works.",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  },
+  {
+    "index": 4,
+    "input": "An AI robot that manages my entire engineering degree.",
+    "project": "DegreeBot",
+    "coreValue": "Help an engineering student complete their degree by planning courses, tracking deadlines, and guiding progress",
+    "mustHaves": [
+      "Collect academic record and student preferences",
+      "Generate a semester-by-semester degree roadmap",
+      "Track upcoming assignment and exam deadlines and send alerts"
+    ],
+    "discardedBloat": [],
+    "productTruth": "You're asking an AI to run an entire degree before proving it can reliably plan and keep you on schedule",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  },
+  {
+    "index": 5,
+    "input": "Build a food delivery app with drone delivery, AR menus, live kitchens, loyalty NFTs, social reviews and restaurant games.",
+    "project": "DroneBite",
+    "coreValue": "Help food-ordering customers receive meals by ordering through the app and having them delivered via drone.",
+    "mustHaves": [
+      "Browse restaurant menu and place order",
+      "Drone delivery of the ordered food"
+    ],
+    "discardedBloat": [
+      "AR menus",
+      "live kitchens",
+      "loyalty NFTs",
+      "social reviews",
+      "restaurant games"
+    ],
+    "productTruth": "You're trying to pack AR, NFTs, live kitchens, and games before proving a simple drone‑delivered food order works.",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  },
+  {
+    "index": 6,
+    "input": "A productivity app that manages tasks, email, calendar, notes, finances, fitness, sleep, relationships and shopping.",
+    "project": "TaskHub",
+    "coreValue": "Help users keep track of their tasks by creating and scheduling them in one place.",
+    "mustHaves": [
+      "Task management",
+      "Calendar integration"
+    ],
+    "discardedBloat": [
+      "Email management",
+      "Notes",
+      "Finances",
+      "Fitness tracking",
+      "Sleep monitoring",
+      "Relationship management",
+      "Shopping lists"
+    ],
+    "productTruth": "You're trying to jam every life domain into one app before proving the basic task‑to‑calendar workflow works.",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  },
+  {
+    "index": 7,
+    "input": "Create the ultimate student app with chat, payments, exams, attendance, notes, internships, gaming, dating and events.",
+    "project": "CampusCore",
+    "coreValue": "Help students stay on top of their academic responsibilities by tracking attendance and viewing exam schedules.",
+    "mustHaves": [
+      "Attendance tracking",
+      "Exam schedule view"
+    ],
+    "discardedBloat": [
+      "Chat",
+      "Payments",
+      "Notes",
+      "Internships",
+      "Gaming",
+      "Dating",
+      "Events"
+    ],
+    "productTruth": "You're stuffing chat, payments, gaming, dating and more into a student app before proving the basic attendance‑and‑exam tracking loop works.",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  },
+  {
+    "index": 8,
+    "input": "A healthcare platform combining doctor consultations, pharmacy, fitness tracking, mental wellness, nutrition and insurance.",
+    "project": "MediLink",
+    "coreValue": "Help patients receive doctor consultations and obtain prescribed medication through a single platform.",
+    "mustHaves": [
+      "Doctor consultation",
+      "Pharmacy order fulfillment"
+    ],
+    "discardedBloat": [
+      "Fitness tracking",
+      "Mental wellness",
+      "Nutrition",
+      "Insurance"
+    ],
+    "productTruth": "You're trying to be a one‑stop health shop before you’ve proven the basic consult‑to‑prescription flow works.",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  },
+  {
+    "index": 9,
+    "input": "A travel app that handles flights, hotels, maps, food, social networking, translation, payments and travel insurance.",
+    "project": "TripMate",
+    "coreValue": "Help travelers plan and book trips by searching and purchasing flights and hotels",
+    "mustHaves": [
+      "Search and book flights",
+      "Search and book hotels",
+      "Process payments for bookings"
+    ],
+    "discardedBloat": [
+      "Maps",
+      "Food",
+      "Social networking",
+      "Translation",
+      "Travel insurance"
+    ],
+    "productTruth": "You're trying to be a Swiss‑army‑knife travel app before proving the basic flight‑and‑hotel booking flow works",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  },
+  {
+    "index": 10,
+    "input": "Build an AI app that replaces every tool a startup founder needs.",
+    "project": "FounderAI",
+    "coreValue": "Help startup founders get a single AI answer that replaces the tool they would otherwise use for a specific task.",
+    "mustHaves": [
+      "Capture founder's task request",
+      "Generate AI response that fulfills the requested task"
+    ],
+    "discardedBloat": [],
+    "productTruth": "You're aiming to replace every founder tool at once, but you must first prove a single task can be reliably handled before expanding.",
+    "leakageDetected": false,
+    "semanticRelevance": true,
+    "pass": true
+  }
+]

@@ -4,6 +4,7 @@ import '../core/animations/spring_physics.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_spacing.dart';
 import '../core/theme/app_typography.dart';
+import '../core/utilities/haptics_util.dart';
 import '../models/trim_session.dart';
 import '../services/trim_session_repository.dart';
 import '../widgets/spring_button.dart';
@@ -38,18 +39,28 @@ class _TrimWorkspaceScreenState extends State<TrimWorkspaceScreen> {
   }
 
   Future<void> _loadWorkspaceData() async {
-    final sessions = await _repository.getAllSessions();
-    final stats = await _repository.getWorkspaceStats();
-    if (mounted) {
-      setState(() {
-        _sessions = sessions;
-        _stats = stats;
-        _isLoading = false;
-      });
+    try {
+      final sessions = await _repository.getAllSessions();
+      final stats = await _repository.getWorkspaceStats();
+      if (mounted) {
+        setState(() {
+          _sessions = sessions;
+          _stats = stats;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _sessions = [];
+          _isLoading = false;
+        });
+      }
     }
   }
 
   Future<void> _openSession(TrimSession session) async {
+    HapticsUtil.lightClick();
     // Opening a saved Trim result works completely OFFLINE with NO API calls
     await Navigator.of(context).push(
       PageRouteBuilder(
@@ -234,7 +245,10 @@ class _TrimWorkspaceScreenState extends State<TrimWorkspaceScreen> {
             child: SpringButton(
               label: 'TRIM AN IDEA',
               icon: Icons.add_rounded,
-              onTap: () => Navigator.of(context).pop(),
+              onTap: () {
+                HapticsUtil.lightClick();
+                Navigator.of(context).pop();
+              },
             ),
           ),
         ],

@@ -93,7 +93,10 @@ class _TrimResultsScreenState extends State<TrimResultsScreen>
     );
 
     Future.delayed(const Duration(milliseconds: 80), () {
-      if (mounted) _coreController.forward();
+      if (mounted) {
+        _coreController.forward();
+        HapticsUtil.mediumImpact();
+      }
     });
     Future.delayed(const Duration(milliseconds: 250), () {
       if (mounted) _truthController.forward();

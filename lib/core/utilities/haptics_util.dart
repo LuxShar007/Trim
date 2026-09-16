@@ -6,16 +6,22 @@ class HapticsUtil {
 
   /// Subtle click on button press-down.
   static void lightClick() {
-    HapticFeedback.selectionClick();
+    try {
+      HapticFeedback.selectionClick();
+    } catch (_) {}
   }
 
   /// Solid release impact when trimming or triggering key actions.
   static void mediumImpact() {
-    HapticFeedback.mediumImpact();
+    try {
+      HapticFeedback.mediumImpact();
+    } catch (_) {}
   }
 
   /// Heavy impact for harsh truth reveals and guillotine cuts.
   static void heavyImpact() {
-    HapticFeedback.heavyImpact();
+    try {
+      HapticFeedback.heavyImpact();
+    } catch (_) {}
   }
 }

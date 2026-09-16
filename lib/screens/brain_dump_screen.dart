@@ -5,6 +5,7 @@ import '../core/animations/spring_physics.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_spacing.dart';
 import '../core/theme/app_typography.dart';
+import '../core/utilities/haptics_util.dart';
 import '../services/trim_voice_service.dart';
 import '../widgets/api_key_modal.dart';
 import '../widgets/spring_button.dart';
@@ -173,7 +174,9 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
     });
 
     final success = await _voiceService.startListening();
-    if (!success && mounted) {
+    if (success) {
+      HapticsUtil.mediumImpact();
+    } else if (mounted) {
       final err = _voiceService.currentError ?? TrimVoiceError.notAvailable;
       setState(() {
         _voiceErrorMessage = err.displayMessage;
@@ -182,6 +185,7 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
   }
 
   Future<void> _stopRecording() async {
+    HapticsUtil.lightClick();
     await _voiceService.stopListening();
     if (mounted) {
       setState(() {
@@ -262,6 +266,7 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
     }
 
     _focusNode.unfocus();
+    HapticsUtil.mediumImpact();
 
     try {
       await Navigator.of(context).push(
@@ -431,6 +436,7 @@ class _BrainDumpScreenState extends State<BrainDumpScreen> {
                               Flexible(
                                 child: GestureDetector(
                                   onTap: () {
+                                    HapticsUtil.lightClick();
                                     final sample = _sampleBloatedIdeas[
                                         _sampleIndex % _sampleBloatedIdeas.length];
                                     _sampleIndex++;
