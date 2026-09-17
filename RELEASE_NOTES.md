@@ -1,8 +1,36 @@
-# TRIM — Release Notes (v1.0.0 Production Build)
+# TRIM — Release Notes
 
-**Product**: TRIM — The Brutally Honest Product Architect  
-**Version**: `1.0.0` (Build `2001`)  
-**Build Date**: September 16, 2026  
+## Version 1.0.1 (Build 2002) — Voice V3 & Workspace Build Desk Update
+
+**Release Date**: September 17, 2026  
+**Target Platform**: Android 16 (API 36) / OriginOS 6 / Snapdragon 8 Elite Gen 5 (iQOO 15) & Modern Web  
+**Application ID**: `com.antigravity.trim.trim`  
+
+### What's New in v1.0.1:
+1. **Voice V3 Reliability Pipeline**:
+   - Upgraded voice dictation with automated initialization retry and `en-IN` / system locale fallback.
+   - Long pause resilience: automatic stream flush prevents speech cutoff during pauses.
+   - Enhanced user feedback banners for microphone permissions and engine availability.
+2. **Workspace Build Desk Artifact Persistence**:
+   - Build Desk markdown specifications (`MVP_SPEC.md`, `BUILD_ORDER.md`, `CUT_FEATURES.md`, `PRODUCT_TRUTH.md`) are now stored directly in Hive workspace documents.
+   - Full in-app preview sheet with syntax-highlighted code views and clipboard copy.
+   - Historical sessions in Workspace now display the `BUILD DESK · 4 FILES` badge.
+3. **Verified Quality**:
+   - 133 / 133 automated tests passing.
+   - Zero static analysis issues (`flutter analyze`).
+
+### Distribution Artifacts (`build/releases/`):
+| Artifact File | Size | Architecture / Target | SHA-256 Checksum |
+| :--- | :--- | :--- | :--- |
+| **`TRIM-v1.0.1-arm64.apk`** | **18.0 MB** | **`arm64-v8a` (iQOO 15 / Snapdragon 8 Elite)** | `9E176066543D959D203DC65BA66FF8D7350899C58D9DA94C9908B041A33FB8C8` |
+| `TRIM-v1.0.1-armeabi-v7a.apk` | 15.6 MB | `armeabi-v7a` (32-bit ARM Legacy) | `448D28D249166246D7215370C7340E39A94A6982564DCEDCD930FCC392592866` |
+| `TRIM-v1.0.1-x86_64.apk` | 19.4 MB | `x86_64` (Emulators / ChromeOS) | `2F1C9B91DA3692CF65B38CBD17FC51AED41E3F5BADE48A1EC3DA56AA55167548` |
+
+---
+
+## Version 1.0.0 (Build 2001) — Initial Screening Prototype
+
+**Release Date**: September 16, 2026  
 **Target Platform**: Android 16 (API 36) / OriginOS 6 / Snapdragon 8 Elite Gen 5 (iQOO 15) & Modern Web  
 **Application ID**: `com.antigravity.trim.trim`  
 

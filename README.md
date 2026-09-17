@@ -30,13 +30,13 @@
 
 ## Try TRIM
 
-[Download Android APK](https://github.com/LuxShar007/Trim/releases/download/v1.0.0/TRIM-v1.0.0-arm64.apk) | [Open Web Demo](https://web-rust-chi-46.vercel.app/) | [Watch Demo Guide](docs/DEMO.md)
+[Download Android APK](https://github.com/LuxShar007/Trim/releases/download/v1.0.1/TRIM-v1.0.1-arm64.apk) | [Open Web Demo](https://web-rust-chi-46.vercel.app/) | [Watch Demo Guide](docs/DEMO.md)
 
 ### Android reviewer setup
 
 No Flutter installation is required to try the Android prototype.
 
-1. **Download the ARM64 APK**: [TRIM-v1.0.0-arm64.apk](https://github.com/LuxShar007/Trim/releases/download/v1.0.0/TRIM-v1.0.0-arm64.apk)
+1. **Download the ARM64 APK**: [TRIM-v1.0.1-arm64.apk](https://github.com/LuxShar007/Trim/releases/download/v1.0.1/TRIM-v1.0.1-arm64.apk)
 2. **Install it** on an Android device (allow unknown apps if prompted).
 3. **Open TRIM**.
 4. **Enter any product idea** (type or use voice dictation).
@@ -217,22 +217,22 @@ During the pre-event prototype development cycle, on-device AI feasibility was t
 
 ---
 
-## Pre-Event Screening Prototype Releases (v1.0.0)
+## Pre-Event Screening Prototype Releases (v1.0.1)
 
-Pre-compiled screening prototype packages are available directly from [GitHub Releases v1.0.0](https://github.com/LuxShar007/Trim/releases/tag/v1.0.0):
+Pre-compiled screening prototype packages are available directly from [GitHub Releases v1.0.1](https://github.com/LuxShar007/Trim/releases/tag/v1.0.1):
 
 | Binary | Size | Target Architecture | Description |
 | :--- | :--- | :--- | :--- |
-| [**`TRIM-v1.0.0-arm64.apk`**](https://github.com/LuxShar007/Trim/releases/download/v1.0.0/TRIM-v1.0.0-arm64.apk) | **18.0 MB** | **64-bit ARM (iQOO 15 / Snapdragon 8 Elite)** | **Primary reviewer download** |
-| [`TRIM-v1.0.0-armeabi-v7a.apk`](https://github.com/LuxShar007/Trim/releases/download/v1.0.0/TRIM-v1.0.0-armeabi-v7a.apk) | 15.5 MB | 32-bit Legacy ARM | Backward-compatibility build |
-| [`TRIM-v1.0.0-x86_64.apk`](https://github.com/LuxShar007/Trim/releases/download/v1.0.0/TRIM-v1.0.0-x86_64.apk) | 19.4 MB | 64-bit Emulators / ChromeOS | Emulator testing build |
+| [**`TRIM-v1.0.1-arm64.apk`**](https://github.com/LuxShar007/Trim/releases/download/v1.0.1/TRIM-v1.0.1-arm64.apk) | **18.0 MB** | **64-bit ARM (iQOO 15 / Snapdragon 8 Elite)** | **Primary reviewer download** |
+| [`TRIM-v1.0.1-armeabi-v7a.apk`](https://github.com/LuxShar007/Trim/releases/download/v1.0.1/TRIM-v1.0.1-armeabi-v7a.apk) | 15.6 MB | 32-bit Legacy ARM | Backward-compatibility build |
+| [`TRIM-v1.0.1-x86_64.apk`](https://github.com/LuxShar007/Trim/releases/download/v1.0.1/TRIM-v1.0.1-x86_64.apk) | 19.4 MB | 64-bit Emulators / ChromeOS | Emulator testing build |
 
 ---
 
 ## Installation & Setup
 
 ### Installing the Screening Prototype on Android
-1. Download [**`TRIM-v1.0.0-arm64.apk`**](https://github.com/LuxShar007/Trim/releases/download/v1.0.0/TRIM-v1.0.0-arm64.apk) from [Releases](https://github.com/LuxShar007/Trim/releases/tag/v1.0.0).
+1. Download [**`TRIM-v1.0.1-arm64.apk`**](https://github.com/LuxShar007/Trim/releases/download/v1.0.1/TRIM-v1.0.1-arm64.apk) from [Releases](https://github.com/LuxShar007/Trim/releases/tag/v1.0.1).
 2. Install the APK on your Android device (ensure "Install unknown apps" permission is granted).
 3. Launch **TRIM** and test the triage flow. No API key setup required!
 
